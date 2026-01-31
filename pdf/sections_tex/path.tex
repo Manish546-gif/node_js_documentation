@@ -1,0 +1,350 @@
+\section{Path}\label{path}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+This module contains utilities for handling and transforming file paths.
+Almost all these methods perform only string transformations. The file
+system is not consulted to check whether paths are valid.
+
+Use \texttt{require(\textquotesingle{}path\textquotesingle{})} to use
+this module. The following methods are provided:
+
+\subsection{path.normalize(p)}\label{path.normalizep}
+
+Normalize a string path, taking care of
+\texttt{\textquotesingle{}..\textquotesingle{}} and
+\texttt{\textquotesingle{}.\textquotesingle{}} parts.
+
+When multiple slashes are found, they're replaced by a single one; when
+the path contains a trailing slash, it is preserved. On Windows
+backslashes are used.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{normalize}\NormalTok{(}\StringTok{'/foo/bar//baz/asdf/quux/..'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'/foo/bar/baz/asdf'}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.join({[}path1{]}{[}, path2{]}{[},
+\ldots{}{]})}\label{path.joinpath1-path2}
+
+Join all arguments together and normalize the resulting path.
+
+Arguments must be strings. In v0.8, non-string arguments were silently
+ignored. In v0.10 and up, an exception is thrown.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{join}\NormalTok{(}\StringTok{'/foo'}\NormalTok{, }\StringTok{'bar'}\NormalTok{, }\StringTok{'baz/asdf'}\NormalTok{, }\StringTok{'quux'}\NormalTok{, }\StringTok{'..'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'/foo/bar/baz/asdf'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{join}\NormalTok{(}\StringTok{'foo'}\NormalTok{, \{\}, }\StringTok{'bar'}\NormalTok{)}
+\CommentTok{// throws exception}
+\NormalTok{TypeError: Arguments to }\OtherTok{path}\NormalTok{.}\FunctionTok{join} \FunctionTok{must} \FunctionTok{be} \FunctionTok{strings}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.resolve({[}from \ldots{}{]},
+to)}\label{path.resolvefrom-to}
+
+Resolves \texttt{to} to an absolute path.
+
+If \texttt{to} isn't already absolute \texttt{from} arguments are
+prepended in right to left order, until an absolute path is found. If
+after using all \texttt{from} paths still no absolute path is found, the
+current working directory is used as well. The resulting path is
+normalized, and trailing slashes are removed unless the path gets
+resolved to the root directory. Non-string \texttt{from} arguments are
+ignored.
+
+Another way to think of it is as a sequence of \texttt{cd} commands in a
+shell.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{resolve}\NormalTok{(}\StringTok{'foo/bar'}\NormalTok{, }\StringTok{'/tmp/file/'}\NormalTok{, }\StringTok{'..'}\NormalTok{, }\StringTok{'a/../subfile'}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Is similar to:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{cd foo/bar}
+\NormalTok{cd /tmp/file/}
+\OtherTok{cd} \NormalTok{..}
+\NormalTok{cd a/../subfile}
+\NormalTok{pwd}
+\end{Highlighting}
+\end{Shaded}
+
+The difference is that the different paths don't need to exist and may
+also be files.
+
+Examples:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{resolve}\NormalTok{(}\StringTok{'/foo/bar'}\NormalTok{, }\StringTok{'./baz'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'/foo/bar/baz'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{resolve}\NormalTok{(}\StringTok{'/foo/bar'}\NormalTok{, }\StringTok{'/tmp/file/'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'/tmp/file'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{resolve}\NormalTok{(}\StringTok{'wwwroot'}\NormalTok{, }\StringTok{'static_files/png/'}\NormalTok{, }\StringTok{'../gif/image.gif'}\NormalTok{)}
+\CommentTok{// if currently in /home/myself/node, it returns}
+\StringTok{'/home/myself/node/wwwroot/static_files/gif/image.gif'}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.isAbsolute(path)}\label{path.isabsolutepath}
+
+Determines whether \texttt{path} is an absolute path. An absolute path
+will always resolve to the same location, regardless of the working
+directory.
+
+Posix examples:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'/foo/bar'}\NormalTok{) }\CommentTok{// true}
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'/baz/..'}\NormalTok{)  }\CommentTok{// true}
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'qux/'}\NormalTok{)     }\CommentTok{// false}
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'.'}\NormalTok{)        }\CommentTok{// false}
+\end{Highlighting}
+\end{Shaded}
+
+Windows examples:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'//server'}\NormalTok{)  }\CommentTok{// true}
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'C:/foo/..'}\NormalTok{) }\CommentTok{// true}
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'bar}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{baz'}\NormalTok{)   }\CommentTok{// false}
+\OtherTok{path}\NormalTok{.}\FunctionTok{isAbsolute}\NormalTok{(}\StringTok{'.'}\NormalTok{)         }\CommentTok{// false}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.relative(from, to)}\label{path.relativefrom-to}
+
+Solve the relative path from \texttt{from} to \texttt{to}.
+
+At times we have two absolute paths, and we need to derive the relative
+path from one to the other. This is actually the reverse transform of
+\texttt{path.resolve}, which means we see that:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{resolve}\NormalTok{(from, }\OtherTok{path}\NormalTok{.}\FunctionTok{relative}\NormalTok{(from, to)) == }\OtherTok{path}\NormalTok{.}\FunctionTok{resolve}\NormalTok{(to)}
+\end{Highlighting}
+\end{Shaded}
+
+Examples:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{relative}\NormalTok{(}\StringTok{'C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{orandea}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{test}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{aaa'}\NormalTok{, }\StringTok{'C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{orandea}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{impl}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{bbb'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'..}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{..}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{impl}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{bbb'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{relative}\NormalTok{(}\StringTok{'/data/orandea/test/aaa'}\NormalTok{, }\StringTok{'/data/orandea/impl/bbb'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'../../impl/bbb'}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.dirname(p)}\label{path.dirnamep}
+
+Return the directory name of a path. Similar to the Unix
+\texttt{dirname} command.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{dirname}\NormalTok{(}\StringTok{'/foo/bar/baz/asdf/quux'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'/foo/bar/baz/asdf'}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.basename(p{[}, ext{]})}\label{path.basenamep-ext}
+
+Return the last portion of a path. Similar to the Unix \texttt{basename}
+command.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{basename}\NormalTok{(}\StringTok{'/foo/bar/baz/asdf/quux.html'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'quux.html'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{basename}\NormalTok{(}\StringTok{'/foo/bar/baz/asdf/quux.html'}\NormalTok{, }\StringTok{'.html'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'quux'}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.extname(p)}\label{path.extnamep}
+
+Return the extension of the path, from the last `.' to end of string in
+the last portion of the path. If there is no `.' in the last portion of
+the path or the first character of it is `.', then it returns an empty
+string. Examples:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{extname}\NormalTok{(}\StringTok{'index.html'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'.html'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{extname}\NormalTok{(}\StringTok{'index.coffee.md'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'.md'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{extname}\NormalTok{(}\StringTok{'index.'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{'.'}
+
+\OtherTok{path}\NormalTok{.}\FunctionTok{extname}\NormalTok{(}\StringTok{'index'}\NormalTok{)}
+\CommentTok{// returns}
+\StringTok{''}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.sep}\label{path.sep}
+
+The platform-specific file separator.
+\texttt{\textquotesingle{}\textbackslash{}\textbackslash{}\textquotesingle{}}
+or \texttt{\textquotesingle{}/\textquotesingle{}}.
+
+An example on *nix:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{'foo/bar/baz'}\NormalTok{.}\FunctionTok{split}\NormalTok{(}\OtherTok{path}\NormalTok{.}\FunctionTok{sep}\NormalTok{)}
+\CommentTok{// returns}
+\NormalTok{[}\StringTok{'foo'}\NormalTok{, }\StringTok{'bar'}\NormalTok{, }\StringTok{'baz'}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+An example on Windows:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{'foo}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{bar}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{baz'}\NormalTok{.}\FunctionTok{split}\NormalTok{(}\OtherTok{path}\NormalTok{.}\FunctionTok{sep}\NormalTok{)}
+\CommentTok{// returns}
+\NormalTok{[}\StringTok{'foo'}\NormalTok{, }\StringTok{'bar'}\NormalTok{, }\StringTok{'baz'}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.delimiter}\label{path.delimiter}
+
+The platform-specific path delimiter, \texttt{;} or
+\texttt{\textquotesingle{}:\textquotesingle{}}.
+
+An example on *nix:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\OtherTok{env}\NormalTok{.}\FunctionTok{PATH}\NormalTok{)}
+\CommentTok{// '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'}
+
+\OtherTok{process}\NormalTok{.}\OtherTok{env}\NormalTok{.}\OtherTok{PATH}\NormalTok{.}\FunctionTok{split}\NormalTok{(}\OtherTok{path}\NormalTok{.}\FunctionTok{delimiter}\NormalTok{)}
+\CommentTok{// returns}
+\NormalTok{[}\StringTok{'/usr/bin'}\NormalTok{, }\StringTok{'/bin'}\NormalTok{, }\StringTok{'/usr/sbin'}\NormalTok{, }\StringTok{'/sbin'}\NormalTok{, }\StringTok{'/usr/local/bin'}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+An example on Windows:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\OtherTok{env}\NormalTok{.}\FunctionTok{PATH}\NormalTok{)}
+\CommentTok{// 'C:\textbackslash{}Windows\textbackslash{}system32;C:\textbackslash{}Windows;C:\textbackslash{}Program Files\textbackslash{}nodejs\textbackslash{}'}
+
+\OtherTok{process}\NormalTok{.}\OtherTok{env}\NormalTok{.}\OtherTok{PATH}\NormalTok{.}\FunctionTok{split}\NormalTok{(}\OtherTok{path}\NormalTok{.}\FunctionTok{delimiter}\NormalTok{)}
+\CommentTok{// returns}
+\NormalTok{[}\StringTok{'C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{Windows}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{system32'}\NormalTok{, }\StringTok{'C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{Windows'}\NormalTok{, }\StringTok{'C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{Program Files}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{nodejs}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{'}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.parse(pathString)}\label{path.parsepathstring}
+
+Returns an object from a path string.
+
+An example on *nix:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{parse}\NormalTok{(}\StringTok{'/home/user/dir/file.txt'}\NormalTok{)}
+\CommentTok{// returns}
+\NormalTok{\{}
+    \DataTypeTok{root }\NormalTok{: }\StringTok{"/"}\NormalTok{,}
+    \DataTypeTok{dir }\NormalTok{: }\StringTok{"/home/user/dir"}\NormalTok{,}
+    \DataTypeTok{base }\NormalTok{: }\StringTok{"file.txt"}\NormalTok{,}
+    \DataTypeTok{ext }\NormalTok{: }\StringTok{".txt"}\NormalTok{,}
+    \DataTypeTok{name }\NormalTok{: }\StringTok{"file"}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+An example on Windows:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{parse}\NormalTok{(}\StringTok{'C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{path}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{dir}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{index.html'}\NormalTok{)}
+\CommentTok{// returns}
+\NormalTok{\{}
+    \DataTypeTok{root }\NormalTok{: }\StringTok{"C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{"}\NormalTok{,}
+    \DataTypeTok{dir }\NormalTok{: }\StringTok{"C:}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{path}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{dir"}\NormalTok{,}
+    \DataTypeTok{base }\NormalTok{: }\StringTok{"index.html"}\NormalTok{,}
+    \DataTypeTok{ext }\NormalTok{: }\StringTok{".html"}\NormalTok{,}
+    \DataTypeTok{name }\NormalTok{: }\StringTok{"index"}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.format(pathObject)}\label{path.formatpathobject}
+
+Returns a path string from an object, the opposite of
+\texttt{path.parse} above.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{path}\NormalTok{.}\FunctionTok{format}\NormalTok{(\{}
+    \DataTypeTok{root }\NormalTok{: }\StringTok{"/"}\NormalTok{,}
+    \DataTypeTok{dir }\NormalTok{: }\StringTok{"/home/user/dir"}\NormalTok{,}
+    \DataTypeTok{base }\NormalTok{: }\StringTok{"file.txt"}\NormalTok{,}
+    \DataTypeTok{ext }\NormalTok{: }\StringTok{".txt"}\NormalTok{,}
+    \DataTypeTok{name }\NormalTok{: }\StringTok{"file"}
+\NormalTok{\})}
+\CommentTok{// returns}
+\StringTok{'/home/user/dir/file.txt'}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{path.posix}\label{path.posix}
+
+Provide access to aforementioned \texttt{path} methods but always
+interact in a posix compatible way.
+
+\subsection{path.win32}\label{path.win32}
+
+Provide access to aforementioned \texttt{path} methods but always
+interact in a win32 compatible way.

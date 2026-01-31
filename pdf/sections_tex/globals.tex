@@ -1,0 +1,232 @@
+\section{Global Objects}\label{global-objects}
+
+These objects are available in all modules. Some of these objects aren't
+actually in the global scope but in the module scope - this will be
+noted.
+
+\subsection{global}\label{global}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\} The global namespace object.
+\end{itemize}
+
+In browsers, the top-level scope is the global scope. That means that in
+browsers if you're in the global scope \texttt{var\ something} will
+define a global variable. In Node this is different. The top-level scope
+is not the global scope; \texttt{var\ something} inside a Node module
+will be local to that module.
+
+\subsection{process}\label{process}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\}
+\end{itemize}
+
+The process object. See the \href{process.html\#process_process}{process
+object} section.
+
+\subsection{console}\label{console}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\}
+\end{itemize}
+
+Used to print to stdout and stderr. See the \href{console.html}{console}
+section.
+
+\subsection{Class: Buffer}\label{class-buffer}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Function\}
+\end{itemize}
+
+Used to handle binary data. See the \href{buffer.html}{buffer section}
+
+\subsection{require()}\label{require}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Function\}
+\end{itemize}
+
+To require modules. See the
+\href{modules.html\#modules_modules}{Modules} section. \texttt{require}
+isn't actually a global but rather local to each module.
+
+\subsubsection{require.resolve()}\label{require.resolve}
+
+Use the internal \texttt{require()} machinery to look up the location of
+a module, but rather than loading the module, just return the resolved
+filename.
+
+\subsubsection{require.cache}\label{require.cache}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\}
+\end{itemize}
+
+Modules are cached in this object when they are required. By deleting a
+key value from this object, the next \texttt{require} will reload the
+module.
+
+\subsubsection{require.extensions}\label{require.extensions}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{0} \NormalTok{- Deprecated}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\}
+\end{itemize}
+
+Instruct \texttt{require} on how to handle certain file extensions.
+
+Process files with the extension \texttt{.sjs} as \texttt{.js}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{require}\NormalTok{.}\FunctionTok{extensions}\NormalTok{[}\StringTok{'.sjs'}\NormalTok{] = }\OtherTok{require}\NormalTok{.}\FunctionTok{extensions}\NormalTok{[}\StringTok{'.js'}\NormalTok{];}
+\end{Highlighting}
+\end{Shaded}
+
+\textbf{Deprecated} In the past, this list has been used to load
+non-JavaScript modules into Node by compiling them on-demand. However,
+in practice, there are much better ways to do this, such as loading
+modules via some other Node program, or compiling them to JavaScript
+ahead of time.
+
+Since the Module system is locked, this feature will probably never go
+away. However, it may have subtle bugs and complexities that are best
+left untouched.
+
+\subsection{\_\_filename}\label{filename}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{String\}
+\end{itemize}
+
+The filename of the code being executed. This is the resolved absolute
+path of this code file. For a main program this is not necessarily the
+same filename used in the command line. The value inside a module is the
+path to that module file.
+
+Example: running \texttt{node\ example.js} from \texttt{/Users/mjr}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(__filename);}
+\CommentTok{// /Users/mjr/example.js}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{\_\_filename} isn't actually a global but rather local to each
+module.
+
+\subsection{\_\_dirname}\label{dirname}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{String\}
+\end{itemize}
+
+The name of the directory that the currently executing script resides
+in.
+
+Example: running \texttt{node\ example.js} from \texttt{/Users/mjr}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(__dirname);}
+\CommentTok{// /Users/mjr}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{\_\_dirname} isn't actually a global but rather local to each
+module.
+
+\subsection{module}\label{module}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\}
+\end{itemize}
+
+A reference to the current module. In particular \texttt{module.exports}
+is used for defining what a module exports and makes available through
+\texttt{require()}.
+
+\texttt{module} isn't actually a global but rather local to each module.
+
+See the \href{modules.html}{module system documentation} for more
+information.
+
+\subsection{exports}\label{exports}
+
+A reference to the \texttt{module.exports} that is shorter to type. See
+\href{modules.html}{module system documentation} for details on when to
+use \texttt{exports} and when to use \texttt{module.exports}.
+
+\texttt{exports} isn't actually a global but rather local to each
+module.
+
+See the \href{modules.html}{module system documentation} for more
+information.
+
+See the \href{modules.html}{module section} for more information.
+
+\subsection{setTimeout(cb, ms)}\label{settimeoutcb-ms}
+
+Run callback \texttt{cb} after \emph{at least} \texttt{ms} milliseconds.
+The actual delay depends on external factors like OS timer granularity
+and system load.
+
+The timeout must be in the range of 1-2,147,483,647 inclusive. If the
+value is outside that range, it's changed to 1 millisecond. Broadly
+speaking, a timer cannot span more than 24.8 days.
+
+Returns an opaque value that represents the timer.
+
+\subsection{clearTimeout(t)}\label{cleartimeoutt}
+
+Stop a timer that was previously created with \texttt{setTimeout()}. The
+callback will not execute.
+
+\subsection{setInterval(cb, ms)}\label{setintervalcb-ms}
+
+Run callback \texttt{cb} repeatedly every \texttt{ms} milliseconds. Note
+that the actual interval may vary, depending on external factors like OS
+timer granularity and system load. It's never less than \texttt{ms} but
+it may be longer.
+
+The interval must be in the range of 1-2,147,483,647 inclusive. If the
+value is outside that range, it's changed to 1 millisecond. Broadly
+speaking, a timer cannot span more than 24.8 days.
+
+Returns an opaque value that represents the timer.
+
+\subsection{clearInterval(t)}\label{clearintervalt}
+
+Stop a timer that was previously created with \texttt{setInterval()}.
+The callback will not execute.
+
+The timer functions are global variables. See the
+\href{timers.html}{timers} section.

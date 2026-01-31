@@ -1,0 +1,1145 @@
+\section{Child Process}\label{child-process}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+Node provides a tri-directional \texttt{popen(3)} facility through the
+\texttt{child\_process} module.
+
+It is possible to stream data through a child's \texttt{stdin},
+\texttt{stdout}, and \texttt{stderr} in a fully non-blocking way. (Note
+that some programs use line-buffered I/O internally. That doesn't affect
+node.js but it means data you send to the child process may not be
+immediately consumed.)
+
+To create a child process use
+\texttt{require(\textquotesingle{}child\_process\textquotesingle{}).spawn()}
+or
+\texttt{require(\textquotesingle{}child\_process\textquotesingle{}).fork()}.
+The semantics of each are slightly different, and explained
+\hyperref[childux5fprocessux5fasynchronousux5fprocessux5fcreation]{below}.
+
+For scripting purposes you may find the
+\hyperref[childux5fprocessux5fsynchronousux5fprocessux5fcreation]{synchronous
+counterparts} more convenient.
+
+\subsection{Class: ChildProcess}\label{class-childprocess}
+
+\texttt{ChildProcess} is an
+\href{events.html\#events_class_events_eventemitter}{EventEmitter}.
+
+Child processes always have three streams associated with them.
+\texttt{child.stdin}, \texttt{child.stdout}, and \texttt{child.stderr}.
+These may be shared with the stdio streams of the parent process, or
+they may be separate stream objects which can be piped to and from.
+
+The ChildProcess class is not intended to be used directly. Use the
+\texttt{spawn()}, \texttt{exec()}, \texttt{execFile()}, or
+\texttt{fork()} methods to create a Child Process instance.
+
+\subsubsection{\texorpdfstring{Event:
+`error'}{Event: error}}\label{event-error}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{err} \{Error Object\} the error.
+\end{itemize}
+
+Emitted when:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  The process could not be spawned, or
+\item
+  The process could not be killed, or
+\item
+  Sending a message to the child process failed for whatever reason.
+\end{enumerate}
+
+Note that the \texttt{exit}-event may or may not fire after an error has
+occurred. If you are listening on both events to fire a function,
+remember to guard against calling your function twice.
+
+See also
+\hyperref[childux5fprocessux5fchildux5fkillux5fsignal]{\texttt{ChildProcess\#kill()}}
+and
+\hyperref[childux5fprocessux5fchildux5fsendux5fmessageux5fsendhandle]{\texttt{ChildProcess\#send()}}.
+
+\subsubsection{\texorpdfstring{Event:
+`exit'}{Event: exit}}\label{event-exit}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{code} \{Number\} the exit code, if it exited normally.
+\item
+  \texttt{signal} \{String\} the signal passed to kill the child
+  process, if it was killed by the parent.
+\end{itemize}
+
+This event is emitted after the child process ends. If the process
+terminated normally, \texttt{code} is the final exit code of the
+process, otherwise \texttt{null}. If the process terminated due to
+receipt of a signal, \texttt{signal} is the string name of the signal,
+otherwise \texttt{null}.
+
+Note that the child process stdio streams might still be open.
+
+Also, note that node establishes signal handlers for
+\texttt{\textquotesingle{}SIGINT\textquotesingle{}} and
+\texttt{\textquotesingle{}SIGTERM}', so it will not terminate due to
+receipt of those signals, it will exit.
+
+See \texttt{waitpid(2)}.
+
+\subsubsection{\texorpdfstring{Event:
+`close'}{Event: close}}\label{event-close}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{code} \{Number\} the exit code, if it exited normally.
+\item
+  \texttt{signal} \{String\} the signal passed to kill the child
+  process, if it was killed by the parent.
+\end{itemize}
+
+This event is emitted when the stdio streams of a child process have all
+terminated. This is distinct from `exit', since multiple processes might
+share the same stdio streams.
+
+\subsubsection{\texorpdfstring{Event:
+`disconnect'}{Event: disconnect}}\label{event-disconnect}
+
+This event is emitted after calling the \texttt{.disconnect()} method in
+the parent or in the child. After disconnecting it is no longer possible
+to send messages, and the \texttt{.connected} property is false.
+
+\subsubsection{\texorpdfstring{Event:
+`message'}{Event: message}}\label{event-message}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{message} \{Object\} a parsed JSON object or primitive value
+\item
+  \texttt{sendHandle} \{Handle object\} a Socket or Server object
+\end{itemize}
+
+Messages send by \texttt{.send(message,\ {[}sendHandle{]})} are obtained
+using the \texttt{message} event.
+
+\subsubsection{child.stdin}\label{child.stdin}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Stream object\}
+\end{itemize}
+
+A \texttt{Writable\ Stream} that represents the child process's
+\texttt{stdin}. If the child is waiting to read all its input, it will
+not continue until this stream has been closed via \texttt{end()}.
+
+If the child was not spawned with \texttt{stdio{[}0{]}} set to
+\texttt{\textquotesingle{}pipe\textquotesingle{}}, then this will not be
+set.
+
+\texttt{child.stdin} is shorthand for \texttt{child.stdio{[}0{]}}. Both
+properties will refer to the same object, or null.
+
+\subsubsection{child.stdout}\label{child.stdout}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Stream object\}
+\end{itemize}
+
+A \texttt{Readable\ Stream} that represents the child process's
+\texttt{stdout}.
+
+If the child was not spawned with \texttt{stdio{[}1{]}} set to
+\texttt{\textquotesingle{}pipe\textquotesingle{}}, then this will not be
+set.
+
+\texttt{child.stdout} is shorthand for \texttt{child.stdio{[}1{]}}. Both
+properties will refer to the same object, or null.
+
+\subsubsection{child.stderr}\label{child.stderr}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Stream object\}
+\end{itemize}
+
+A \texttt{Readable\ Stream} that represents the child process's
+\texttt{stderr}.
+
+If the child was not spawned with \texttt{stdio{[}2{]}} set to
+\texttt{\textquotesingle{}pipe\textquotesingle{}}, then this will not be
+set.
+
+\texttt{child.stderr} is shorthand for \texttt{child.stdio{[}2{]}}. Both
+properties will refer to the same object, or null.
+
+\subsubsection{child.stdio}\label{child.stdio}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Array\}
+\end{itemize}
+
+A sparse array of pipes to the child process, corresponding with
+positions in the \hyperref[childux5fprocessux5foptionsux5fstdio]{stdio}
+option to
+\hyperref[childux5fprocessux5fchildux5fprocessux5fspawnux5fcommandux5fargsux5foptions]{spawn}
+that have been set to \texttt{\textquotesingle{}pipe\textquotesingle{}}.
+Note that streams 0-2 are also available as ChildProcess.stdin,
+ChildProcess.stdout, and ChildProcess.stderr, respectively.
+
+In the following example, only the child's fd \texttt{1} is setup as a
+pipe, so only the parent's \texttt{child.stdio{[}1{]}} is a stream, all
+other values in the array are \texttt{null}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{child = }\OtherTok{child_process}\NormalTok{.}\FunctionTok{spawn}\NormalTok{(}\StringTok{"ls"}\NormalTok{, \{}
+    \DataTypeTok{stdio}\NormalTok{: [}
+      \DecValTok{0}\NormalTok{, }\CommentTok{// use parents stdin for child}
+      \StringTok{'pipe'}\NormalTok{, }\CommentTok{// pipe child's stdout to parent}
+      \OtherTok{fs}\NormalTok{.}\FunctionTok{openSync}\NormalTok{(}\StringTok{"err.out"}\NormalTok{, }\StringTok{"w"}\NormalTok{) }\CommentTok{// direct child's stderr to a file}
+    \NormalTok{]}
+\NormalTok{\});}
+
+\OtherTok{assert}\NormalTok{.}\FunctionTok{equal}\NormalTok{(}\OtherTok{child}\NormalTok{.}\FunctionTok{stdio}\NormalTok{[}\DecValTok{0}\NormalTok{], }\KeywordTok{null}\NormalTok{);}
+\OtherTok{assert}\NormalTok{.}\FunctionTok{equal}\NormalTok{(}\OtherTok{child}\NormalTok{.}\FunctionTok{stdio}\NormalTok{[}\DecValTok{0}\NormalTok{], }\OtherTok{child}\NormalTok{.}\FunctionTok{stdin}\NormalTok{);}
+
+\FunctionTok{assert}\NormalTok{(}\OtherTok{child}\NormalTok{.}\FunctionTok{stdout}\NormalTok{);}
+\OtherTok{assert}\NormalTok{.}\FunctionTok{equal}\NormalTok{(}\OtherTok{child}\NormalTok{.}\FunctionTok{stdio}\NormalTok{[}\DecValTok{1}\NormalTok{], }\OtherTok{child}\NormalTok{.}\FunctionTok{stdout}\NormalTok{);}
+
+\OtherTok{assert}\NormalTok{.}\FunctionTok{equal}\NormalTok{(}\OtherTok{child}\NormalTok{.}\FunctionTok{stdio}\NormalTok{[}\DecValTok{2}\NormalTok{], }\KeywordTok{null}\NormalTok{);}
+\OtherTok{assert}\NormalTok{.}\FunctionTok{equal}\NormalTok{(}\OtherTok{child}\NormalTok{.}\FunctionTok{stdio}\NormalTok{[}\DecValTok{2}\NormalTok{], }\OtherTok{child}\NormalTok{.}\FunctionTok{stderr}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{child.pid}\label{child.pid}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Integer\}
+\end{itemize}
+
+The PID of the child process.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{spawn = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{spawn}\NormalTok{,}
+    \NormalTok{grep  = }\FunctionTok{spawn}\NormalTok{(}\StringTok{'grep'}\NormalTok{, [}\StringTok{'ssh'}\NormalTok{]);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Spawned child pid: '} \NormalTok{+ }\OtherTok{grep}\NormalTok{.}\FunctionTok{pid}\NormalTok{);}
+\OtherTok{grep}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{end}\NormalTok{();}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{child.connected}\label{child.connected}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Boolean\} Set to false after `.disconnect' is called
+\end{itemize}
+
+If \texttt{.connected} is false, it is no longer possible to send
+messages.
+
+\subsubsection{child.kill({[}signal{]})}\label{child.killsignal}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{signal} \{String\}
+\end{itemize}
+
+Send a signal to the child process. If no argument is given, the process
+will be sent \texttt{\textquotesingle{}SIGTERM\textquotesingle{}}. See
+\texttt{signal(7)} for a list of available signals.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{spawn = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{spawn}\NormalTok{,}
+    \NormalTok{grep  = }\FunctionTok{spawn}\NormalTok{(}\StringTok{'grep'}\NormalTok{, [}\StringTok{'ssh'}\NormalTok{]);}
+
+\OtherTok{grep}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'close'}\NormalTok{, }\KeywordTok{function} \NormalTok{(code, signal) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'child process terminated due to receipt of signal '}\NormalTok{+signal);}
+\NormalTok{\});}
+
+\CommentTok{// send SIGHUP to process}
+\OtherTok{grep}\NormalTok{.}\FunctionTok{kill}\NormalTok{(}\StringTok{'SIGHUP'}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+May emit an \texttt{\textquotesingle{}error\textquotesingle{}} event
+when the signal cannot be delivered. Sending a signal to a child process
+that has already exited is not an error but may have unforeseen
+consequences: if the PID (the process ID) has been reassigned to another
+process, the signal will be delivered to that process instead. What
+happens next is anyone's guess.
+
+Note that while the function is called \texttt{kill}, the signal
+delivered to the child process may not actually kill it. \texttt{kill}
+really just sends a signal to a process.
+
+See \texttt{kill(2)}
+
+\subsubsection{child.send(message{[},
+sendHandle{]})}\label{child.sendmessage-sendhandle}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{message} \{Object\}
+\item
+  \texttt{sendHandle} \{Handle object\}
+\end{itemize}
+
+When using \texttt{child\_process.fork()} you can write to the child
+using \texttt{child.send(message,\ {[}sendHandle{]})} and messages are
+received by a \texttt{\textquotesingle{}message\textquotesingle{}} event
+on the child.
+
+For example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{cp = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{);}
+
+\KeywordTok{var} \NormalTok{n = }\OtherTok{cp}\NormalTok{.}\FunctionTok{fork}\NormalTok{(__dirname + }\StringTok{'/sub.js'}\NormalTok{);}
+
+\OtherTok{n}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'message'}\NormalTok{, }\KeywordTok{function}\NormalTok{(m) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'PARENT got message:'}\NormalTok{, m);}
+\NormalTok{\});}
+
+\OtherTok{n}\NormalTok{.}\FunctionTok{send}\NormalTok{(\{ }\DataTypeTok{hello}\NormalTok{: }\StringTok{'world'} \NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+And then the child script,
+\texttt{\textquotesingle{}sub.js\textquotesingle{}} might look like
+this:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'message'}\NormalTok{, }\KeywordTok{function}\NormalTok{(m) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'CHILD got message:'}\NormalTok{, m);}
+\NormalTok{\});}
+
+\OtherTok{process}\NormalTok{.}\FunctionTok{send}\NormalTok{(\{ }\DataTypeTok{foo}\NormalTok{: }\StringTok{'bar'} \NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+In the child the \texttt{process} object will have a \texttt{send()}
+method, and \texttt{process} will emit objects each time it receives a
+message on its channel.
+
+Please note that the \texttt{send()} method on both the parent and child
+are synchronous - sending large chunks of data is not advised (pipes can
+be used instead, see
+\hyperref[childux5fprocessux5fchildux5fprocessux5fspawnux5fcommandux5fargsux5foptions]{\texttt{child\_process.spawn}}).
+
+There is a special case when sending a
+\texttt{\{cmd:\ \textquotesingle{}NODE\_foo\textquotesingle{}\}}
+message. All messages containing a \texttt{NODE\_} prefix in its
+\texttt{cmd} property will not be emitted in the \texttt{message} event,
+since they are internal messages used by node core. Messages containing
+the prefix are emitted in the \texttt{internalMessage} event, you should
+by all means avoid using this feature, it is subject to change without
+notice.
+
+The \texttt{sendHandle} option to \texttt{child.send()} is for sending a
+TCP server or socket object to another process. The child will receive
+the object as its second argument to the \texttt{message} event.
+
+Emits an \texttt{\textquotesingle{}error\textquotesingle{}} event if the
+message cannot be sent, for example because the child process has
+already exited.
+
+\paragraph{Example: sending server
+object}\label{example-sending-server-object}
+
+Here is an example of sending a server:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{child = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{fork}\NormalTok{(}\StringTok{'child.js'}\NormalTok{);}
+
+\CommentTok{// Open up the server object and send the handle.}
+\KeywordTok{var} \NormalTok{server = }\FunctionTok{require}\NormalTok{(}\StringTok{'net'}\NormalTok{).}\FunctionTok{createServer}\NormalTok{();}
+\OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'connection'}\NormalTok{, }\KeywordTok{function} \NormalTok{(socket) \{}
+  \OtherTok{socket}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{'handled by parent'}\NormalTok{);}
+\NormalTok{\});}
+\OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(}\DecValTok{1337}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{child}\NormalTok{.}\FunctionTok{send}\NormalTok{(}\StringTok{'server'}\NormalTok{, server);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+And the child would the receive the server object as:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'message'}\NormalTok{, }\KeywordTok{function}\NormalTok{(m, server) \{}
+  \KeywordTok{if} \NormalTok{(m === }\StringTok{'server'}\NormalTok{) \{}
+    \OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'connection'}\NormalTok{, }\KeywordTok{function} \NormalTok{(socket) \{}
+      \OtherTok{socket}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{'handled by child'}\NormalTok{);}
+    \NormalTok{\});}
+  \NormalTok{\}}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Note that the server is now shared between the parent and child, this
+means that some connections will be handled by the parent and some by
+the child.
+
+For \texttt{dgram} servers the workflow is exactly the same. Here you
+listen on a \texttt{message} event instead of \texttt{connection} and
+use \texttt{server.bind} instead of \texttt{server.listen}. (Currently
+only supported on UNIX platforms.)
+
+\paragraph{Example: sending socket
+object}\label{example-sending-socket-object}
+
+Here is an example of sending a socket. It will spawn two children and
+handle connections with the remote address \texttt{74.125.127.100} as
+VIP by sending the socket to a ``special'' child process. Other sockets
+will go to a ``normal'' process.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{normal = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{fork}\NormalTok{(}\StringTok{'child.js'}\NormalTok{, [}\StringTok{'normal'}\NormalTok{]);}
+\KeywordTok{var} \NormalTok{special = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{fork}\NormalTok{(}\StringTok{'child.js'}\NormalTok{, [}\StringTok{'special'}\NormalTok{]);}
+
+\CommentTok{// Open up the server and send sockets to child}
+\KeywordTok{var} \NormalTok{server = }\FunctionTok{require}\NormalTok{(}\StringTok{'net'}\NormalTok{).}\FunctionTok{createServer}\NormalTok{();}
+\OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'connection'}\NormalTok{, }\KeywordTok{function} \NormalTok{(socket) \{}
+
+  \CommentTok{// if this is a VIP}
+  \KeywordTok{if} \NormalTok{(}\OtherTok{socket}\NormalTok{.}\FunctionTok{remoteAddress} \NormalTok{=== }\StringTok{'74.125.127.100'}\NormalTok{) \{}
+    \OtherTok{special}\NormalTok{.}\FunctionTok{send}\NormalTok{(}\StringTok{'socket'}\NormalTok{, socket);}
+    \KeywordTok{return}\NormalTok{;}
+  \NormalTok{\}}
+  \CommentTok{// just the usual dudes}
+  \OtherTok{normal}\NormalTok{.}\FunctionTok{send}\NormalTok{(}\StringTok{'socket'}\NormalTok{, socket);}
+\NormalTok{\});}
+\OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(}\DecValTok{1337}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+The \texttt{child.js} could look like this:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'message'}\NormalTok{, }\KeywordTok{function}\NormalTok{(m, socket) \{}
+  \KeywordTok{if} \NormalTok{(m === }\StringTok{'socket'}\NormalTok{) \{}
+    \OtherTok{socket}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{'You were handled as a '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{argv}\NormalTok{[}\DecValTok{2}\NormalTok{] + }\StringTok{' person'}\NormalTok{);}
+  \NormalTok{\}}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Note that once a single socket has been sent to a child the parent can
+no longer keep track of when the socket is destroyed. To indicate this
+condition the \texttt{.connections} property becomes \texttt{null}. It
+is also recommended not to use \texttt{.maxConnections} in this
+condition.
+
+\subsubsection{child.disconnect()}\label{child.disconnect}
+
+Close the IPC channel between parent and child, allowing the child to
+exit gracefully once there are no other connections keeping it alive.
+After calling this method the \texttt{.connected} flag will be set to
+\texttt{false} in both the parent and child, and it is no longer
+possible to send messages.
+
+The `disconnect' event will be emitted when there are no messages in the
+process of being received, most likely immediately.
+
+Note that you can also call \texttt{process.disconnect()} in the child
+process when the child process has any open IPC channels with the parent
+(i.e \texttt{fork()}).
+
+\subsection{Asynchronous Process
+Creation}\label{asynchronous-process-creation}
+
+These methods follow the common async programming patterns (accepting a
+callback or returning an EventEmitter).
+
+\subsubsection{child\_process.spawn(command{[}, args{]}{[},
+options{]})}\label{childux5fprocess.spawncommand-args-options}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{command} \{String\} The command to run
+\item
+  \texttt{args} \{Array\} List of string arguments
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{stdio} \{Array\textbar{}String\} Child's stdio configuration.
+  (See \hyperref[childux5fprocessux5foptionsux5fstdio]{below})
+\item
+  \texttt{customFds} \{Array\} \textbf{Deprecated} File descriptors for
+  the child to use for stdio. (See
+  \hyperref[childux5fprocessux5foptionsux5fcustomFds]{below})
+\item
+  \texttt{detached} \{Boolean\} The child will be a process group
+  leader. (See
+  \hyperref[childux5fprocessux5foptionsux5fdetached]{below})
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  return: \{ChildProcess object\}
+\end{itemize}
+
+Launches a new process with the given \texttt{command}, with command
+line arguments in \texttt{args}. If omitted, \texttt{args} defaults to
+an empty Array.
+
+The third argument is used to specify additional options, with these
+defaults:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{cwd}\NormalTok{: }\KeywordTok{undefined}\NormalTok{,}
+  \DataTypeTok{env}\NormalTok{: }\OtherTok{process}\NormalTok{.}\FunctionTok{env}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Use \texttt{cwd} to specify the working directory from which the process
+is spawned. If not given, the default is to inherit the current working
+directory.
+
+Use \texttt{env} to specify environment variables that will be visible
+to the new process, the default is \texttt{process.env}.
+
+Example of running \texttt{ls\ -lh\ /usr}, capturing \texttt{stdout},
+\texttt{stderr}, and the exit code:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{spawn = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{spawn}\NormalTok{,}
+    \NormalTok{ls    = }\FunctionTok{spawn}\NormalTok{(}\StringTok{'ls'}\NormalTok{, [}\StringTok{'-lh'}\NormalTok{, }\StringTok{'/usr'}\NormalTok{]);}
+
+\OtherTok{ls}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function} \NormalTok{(data) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'stdout: '} \NormalTok{+ data);}
+\NormalTok{\});}
+
+\OtherTok{ls}\NormalTok{.}\OtherTok{stderr}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function} \NormalTok{(data) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'stderr: '} \NormalTok{+ data);}
+\NormalTok{\});}
+
+\OtherTok{ls}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'close'}\NormalTok{, }\KeywordTok{function} \NormalTok{(code) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'child process exited with code '} \NormalTok{+ code);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Example: A very elaborate way to run `ps ax \textbar{} grep ssh'
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{spawn = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{spawn}\NormalTok{,}
+    \NormalTok{ps    = }\FunctionTok{spawn}\NormalTok{(}\StringTok{'ps'}\NormalTok{, [}\StringTok{'ax'}\NormalTok{]),}
+    \NormalTok{grep  = }\FunctionTok{spawn}\NormalTok{(}\StringTok{'grep'}\NormalTok{, [}\StringTok{'ssh'}\NormalTok{]);}
+
+\OtherTok{ps}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function} \NormalTok{(data) \{}
+  \OtherTok{grep}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{write}\NormalTok{(data);}
+\NormalTok{\});}
+
+\OtherTok{ps}\NormalTok{.}\OtherTok{stderr}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function} \NormalTok{(data) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'ps stderr: '} \NormalTok{+ data);}
+\NormalTok{\});}
+
+\OtherTok{ps}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'close'}\NormalTok{, }\KeywordTok{function} \NormalTok{(code) \{}
+  \KeywordTok{if} \NormalTok{(code !== }\DecValTok{0}\NormalTok{) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'ps process exited with code '} \NormalTok{+ code);}
+  \NormalTok{\}}
+  \OtherTok{grep}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{end}\NormalTok{();}
+\NormalTok{\});}
+
+\OtherTok{grep}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function} \NormalTok{(data) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{''} \NormalTok{+ data);}
+\NormalTok{\});}
+
+\OtherTok{grep}\NormalTok{.}\OtherTok{stderr}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function} \NormalTok{(data) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'grep stderr: '} \NormalTok{+ data);}
+\NormalTok{\});}
+
+\OtherTok{grep}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'close'}\NormalTok{, }\KeywordTok{function} \NormalTok{(code) \{}
+  \KeywordTok{if} \NormalTok{(code !== }\DecValTok{0}\NormalTok{) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'grep process exited with code '} \NormalTok{+ code);}
+  \NormalTok{\}}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{options.stdio}\label{options.stdio}
+
+As a shorthand, the \texttt{stdio} argument may also be one of the
+following strings:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{\textquotesingle{}pipe\textquotesingle{}} -
+  \texttt{{[}\textquotesingle{}pipe\textquotesingle{},\ \textquotesingle{}pipe\textquotesingle{},\ \textquotesingle{}pipe\textquotesingle{}{]}},
+  this is the default value
+\item
+  \texttt{\textquotesingle{}ignore\textquotesingle{}} -
+  \texttt{{[}\textquotesingle{}ignore\textquotesingle{},\ \textquotesingle{}ignore\textquotesingle{},\ \textquotesingle{}ignore\textquotesingle{}{]}}
+\item
+  \texttt{\textquotesingle{}inherit\textquotesingle{}} -
+  \texttt{{[}process.stdin,\ process.stdout,\ process.stderr{]}} or
+  \texttt{{[}0,1,2{]}}
+\end{itemize}
+
+Otherwise, the `stdio' option to \texttt{child\_process.spawn()} is an
+array where each index corresponds to a fd in the child. The value is
+one of the following:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{\textquotesingle{}pipe\textquotesingle{}} - Create a pipe
+  between the child process and the parent process. The parent end of
+  the pipe is exposed to the parent as a property on the
+  \texttt{child\_process} object as \texttt{ChildProcess.stdio{[}fd{]}}.
+  Pipes created for fds 0 - 2 are also available as ChildProcess.stdin,
+  ChildProcess.stdout and ChildProcess.stderr, respectively.
+\item
+  \texttt{\textquotesingle{}ipc\textquotesingle{}} - Create an IPC
+  channel for passing messages/file descriptors between parent and
+  child. A ChildProcess may have at most \emph{one} IPC stdio file
+  descriptor. Setting this option enables the ChildProcess.send()
+  method. If the child writes JSON messages to this file descriptor,
+  then this will trigger ChildProcess.on(`message'). If the child is a
+  Node.js program, then the presence of an IPC channel will enable
+  process.send() and process.on(`message').
+\item
+  \texttt{\textquotesingle{}ignore\textquotesingle{}} - Do not set this
+  file descriptor in the child. Note that Node will always open fd 0 - 2
+  for the processes it spawns. When any of these is ignored node will
+  open \texttt{/dev/null} and attach it to the child's fd.
+\item
+  \texttt{Stream} object - Share a readable or writable stream that
+  refers to a tty, file, socket, or a pipe with the child process. The
+  stream's underlying file descriptor is duplicated in the child process
+  to the fd that corresponds to the index in the \texttt{stdio} array.
+  Note that the stream must have an underlying descriptor (file streams
+  do not until the \texttt{\textquotesingle{}open\textquotesingle{}}
+  event has occurred).
+\item
+  Positive integer - The integer value is interpreted as a file
+  descriptor that is is currently open in the parent process. It is
+  shared with the child process, similar to how \texttt{Stream} objects
+  can be shared.
+\item
+  \texttt{null}, \texttt{undefined} - Use default value. For stdio fds
+  0, 1 and 2 (in other words, stdin, stdout, and stderr) a pipe is
+  created. For fd 3 and up, the default is
+  \texttt{\textquotesingle{}ignore\textquotesingle{}}.
+\end{enumerate}
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{spawn = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{spawn}\NormalTok{;}
+
+\CommentTok{// Child will use parent's stdios}
+\FunctionTok{spawn}\NormalTok{(}\StringTok{'prg'}\NormalTok{, [], \{ }\DataTypeTok{stdio}\NormalTok{: }\StringTok{'inherit'} \NormalTok{\});}
+
+\CommentTok{// Spawn child sharing only stderr}
+\FunctionTok{spawn}\NormalTok{(}\StringTok{'prg'}\NormalTok{, [], \{ }\DataTypeTok{stdio}\NormalTok{: [}\StringTok{'pipe'}\NormalTok{, }\StringTok{'pipe'}\NormalTok{, }\OtherTok{process}\NormalTok{.}\FunctionTok{stderr}\NormalTok{] \});}
+
+\CommentTok{// Open an extra fd=4, to interact with programs present a}
+\CommentTok{// startd-style interface.}
+\FunctionTok{spawn}\NormalTok{(}\StringTok{'prg'}\NormalTok{, [], \{ }\DataTypeTok{stdio}\NormalTok{: [}\StringTok{'pipe'}\NormalTok{, }\KeywordTok{null}\NormalTok{, }\KeywordTok{null}\NormalTok{, }\KeywordTok{null}\NormalTok{, }\StringTok{'pipe'}\NormalTok{] \});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{options.detached}\label{options.detached}
+
+If the \texttt{detached} option is set, the child process will be made
+the leader of a new process group. This makes it possible for the child
+to continue running after the parent exits.
+
+By default, the parent will wait for the detached child to exit. To
+prevent the parent from waiting for a given \texttt{child}, use the
+\texttt{child.unref()} method, and the parent's event loop will not
+include the child in its reference count.
+
+Example of detaching a long-running process and redirecting its output
+to a file:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+ \KeywordTok{var} \NormalTok{fs = }\FunctionTok{require}\NormalTok{(}\StringTok{'fs'}\NormalTok{),}
+     \NormalTok{spawn = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{spawn}\NormalTok{,}
+     \NormalTok{out = }\OtherTok{fs}\NormalTok{.}\FunctionTok{openSync}\NormalTok{(}\StringTok{'./out.log'}\NormalTok{, }\StringTok{'a'}\NormalTok{),}
+     \NormalTok{err = }\OtherTok{fs}\NormalTok{.}\FunctionTok{openSync}\NormalTok{(}\StringTok{'./out.log'}\NormalTok{, }\StringTok{'a'}\NormalTok{);}
+
+ \KeywordTok{var} \NormalTok{child = }\FunctionTok{spawn}\NormalTok{(}\StringTok{'prg'}\NormalTok{, [], \{}
+   \DataTypeTok{detached}\NormalTok{: }\KeywordTok{true}\NormalTok{,}
+   \DataTypeTok{stdio}\NormalTok{: [ }\StringTok{'ignore'}\NormalTok{, out, err ]}
+ \NormalTok{\});}
+
+ \OtherTok{child}\NormalTok{.}\FunctionTok{unref}\NormalTok{();}
+\end{Highlighting}
+\end{Shaded}
+
+When using the \texttt{detached} option to start a long-running process,
+the process will not stay running in the background unless it is
+provided with a \texttt{stdio} configuration that is not connected to
+the parent. If the parent's \texttt{stdio} is inherited, the child will
+remain attached to the controlling terminal.
+
+\subsubsection{options.customFds}\label{options.customfds}
+
+There is a deprecated option called \texttt{customFds} which allows one
+to specify specific file descriptors for the stdio of the child process.
+This API was not portable to all platforms and therefore removed. With
+\texttt{customFds} it was possible to hook up the new process'
+\texttt{{[}stdin,\ stdout,\ stderr{]}} to existing streams; \texttt{-1}
+meant that a new stream should be created. Use at your own risk.
+
+See also: \texttt{child\_process.exec()} and
+\texttt{child\_process.fork()}
+
+\subsubsection{child\_process.exec(command{[}, options{]},
+callback)}\label{childux5fprocess.execcommand-options-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{command} \{String\} The command to run, with space-separated
+  arguments
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{encoding} \{String\} (Default: `utf8')
+\item
+  \texttt{shell} \{String\} Shell to execute the command with (Default:
+  `/bin/sh' on UNIX, `cmd.exe' on Windows, The shell should understand
+  the \texttt{-c} switch on UNIX or \texttt{/s\ /c} on Windows. On
+  Windows, command line parsing should be compatible with
+  \texttt{cmd.exe}.)
+\item
+  \texttt{timeout} \{Number\} (Default: 0)
+\item
+  \texttt{maxBuffer} \{Number\} (Default: \texttt{200*1024})
+\item
+  \texttt{killSignal} \{String\} (Default: `SIGTERM')
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  \texttt{callback} \{Function\} called with the output when process
+  terminates
+\item
+  \texttt{error} \{Error\}
+\item
+  \texttt{stdout} \{Buffer\}
+\item
+  \texttt{stderr} \{Buffer\}
+\item
+  Return: ChildProcess object
+\end{itemize}
+
+Runs a command in a shell and buffers the output.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{exec = }\FunctionTok{require}\NormalTok{(}\StringTok{'child_process'}\NormalTok{).}\FunctionTok{exec}\NormalTok{,}
+    \NormalTok{child;}
+
+\NormalTok{child = }\FunctionTok{exec}\NormalTok{(}\StringTok{'cat *.js bad_file | wc -l'}\NormalTok{,}
+  \KeywordTok{function} \NormalTok{(error, stdout, stderr) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'stdout: '} \NormalTok{+ stdout);}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'stderr: '} \NormalTok{+ stderr);}
+    \KeywordTok{if} \NormalTok{(error !== }\KeywordTok{null}\NormalTok{) \{}
+      \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'exec error: '} \NormalTok{+ error);}
+    \NormalTok{\}}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+The callback gets the arguments \texttt{(error,\ stdout,\ stderr)}. On
+success, \texttt{error} will be \texttt{null}. On error, \texttt{error}
+will be an instance of \texttt{Error} and \texttt{error.code} will be
+the exit code of the child process, and \texttt{error.signal} will be
+set to the signal that terminated the process.
+
+There is a second optional argument to specify several options. The
+default options are
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{encoding}\NormalTok{: }\StringTok{'utf8'}\NormalTok{,}
+  \DataTypeTok{timeout}\NormalTok{: }\DecValTok{0}\NormalTok{,}
+  \DataTypeTok{maxBuffer}\NormalTok{: }\DecValTok{200}\NormalTok{*}\DecValTok{1024}\NormalTok{,}
+  \DataTypeTok{killSignal}\NormalTok{: }\StringTok{'SIGTERM'}\NormalTok{,}
+  \DataTypeTok{cwd}\NormalTok{: }\KeywordTok{null}\NormalTok{,}
+  \DataTypeTok{env}\NormalTok{: }\KeywordTok{null} \NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+If \texttt{timeout} is greater than 0, then it will kill the child
+process if it runs longer than \texttt{timeout} milliseconds. The child
+process is killed with \texttt{killSignal} (default:
+\texttt{\textquotesingle{}SIGTERM\textquotesingle{}}).
+\texttt{maxBuffer} specifies the largest amount of data allowed on
+stdout or stderr - if this value is exceeded then the child process is
+killed.
+
+\subsubsection{child\_process.execFile(file{[}, args{]}{[},
+options{]}{[},
+callback{]})}\label{childux5fprocess.execfilefile-args-options-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{file} \{String\} The filename of the program to run
+\item
+  \texttt{args} \{Array\} List of string arguments
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{encoding} \{String\} (Default: `utf8')
+\item
+  \texttt{timeout} \{Number\} (Default: 0)
+\item
+  \texttt{maxBuffer} \{Number\} (Default: 200*1024)
+\item
+  \texttt{killSignal} \{String\} (Default: `SIGTERM')
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  \texttt{callback} \{Function\} called with the output when process
+  terminates
+\item
+  \texttt{error} \{Error\}
+\item
+  \texttt{stdout} \{Buffer\}
+\item
+  \texttt{stderr} \{Buffer\}
+\item
+  Return: ChildProcess object
+\end{itemize}
+
+This is similar to \texttt{child\_process.exec()} except it does not
+execute a subshell but rather the specified file directly. This makes it
+slightly leaner than \texttt{child\_process.exec}. It has the same
+options.
+
+\subsubsection{child\_process.fork(modulePath{[}, args{]}{[},
+options{]})}\label{childux5fprocess.forkmodulepath-args-options}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{modulePath} \{String\} The module to run in the child
+\item
+  \texttt{args} \{Array\} List of string arguments
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{execPath} \{String\} Executable used to create the child
+  process
+\item
+  \texttt{execArgv} \{Array\} List of string arguments passed to the
+  executable (Default: \texttt{process.execArgv})
+\item
+  \texttt{silent} \{Boolean\} If true, stdin, stdout, and stderr of the
+  child will be piped to the parent, otherwise they will be inherited
+  from the parent, see the ``pipe'' and ``inherit'' options for
+  \texttt{spawn()}'s \texttt{stdio} for more details (default is false)
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  Return: ChildProcess object
+\end{itemize}
+
+This is a special case of the \texttt{spawn()} functionality for
+spawning Node processes. In addition to having all the methods in a
+normal ChildProcess instance, the returned object has a communication
+channel built-in. See \texttt{child.send(message,\ {[}sendHandle{]})}
+for details.
+
+These child Nodes are still whole new instances of V8. Assume at least
+30ms startup and 10mb memory for each new Node. That is, you cannot
+create many thousands of them.
+
+The \texttt{execPath} property in the \texttt{options} object allows for
+a process to be created for the child rather than the current
+\texttt{node} executable. This should be done with care and by default
+will talk over the fd represented an environmental variable
+\texttt{NODE\_CHANNEL\_FD} on the child process. The input and output on
+this fd is expected to be line delimited JSON objects.
+
+\subsection{Synchronous Process
+Creation}\label{synchronous-process-creation}
+
+These methods are \textbf{synchronous}, meaning they \textbf{WILL} block
+the event loop, pausing execution of your code until the spawned process
+exits.
+
+Blocking calls like these are mostly useful for simplifying general
+purpose scripting tasks and for simplifying the loading/processing of
+application configuration at startup.
+
+\subsubsection{child\_process.spawnSync(command{[}, args{]}{[},
+options{]})}\label{childux5fprocess.spawnsynccommand-args-options}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{command} \{String\} The command to run
+\item
+  \texttt{args} \{Array\} List of string arguments
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{input} \{String\textbar{}Buffer\} The value which will be
+  passed as stdin to the spawned process
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    supplying this value will override \texttt{stdio{[}0{]}}
+  \end{itemize}
+\item
+  \texttt{stdio} \{Array\} Child's stdio configuration.
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  \texttt{timeout} \{Number\} In milliseconds the maximum amount of time
+  the process is allowed to run. (Default: undefined)
+\item
+  \texttt{killSignal} \{String\} The signal value to be used when the
+  spawned process will be killed. (Default: `SIGTERM')
+\item
+  \texttt{maxBuffer} \{Number\}
+\item
+  \texttt{encoding} \{String\} The encoding used for all stdio inputs
+  and outputs. (Default: `buffer')
+\item
+  return: \{Object\}
+\item
+  \texttt{pid} \{Number\} Pid of the child process
+\item
+  \texttt{output} \{Array\} Array of results from stdio output
+\item
+  \texttt{stdout} \{Buffer\textbar{}String\} The contents of
+  \texttt{output{[}1{]}}
+\item
+  \texttt{stderr} \{Buffer\textbar{}String\} The contents of
+  \texttt{output{[}2{]}}
+\item
+  \texttt{status} \{Number\} The exit code of the child process
+\item
+  \texttt{signal} \{String\} The signal used to kill the child process
+\item
+  \texttt{error} \{Error\} The error object if the child process failed
+  or timed out
+\end{itemize}
+
+\texttt{spawnSync} will not return until the child process has fully
+closed. When a timeout has been encountered and \texttt{killSignal} is
+sent, the method won't return until the process has completely exited.
+That is to say, if the process handles the \texttt{SIGTERM} signal and
+doesn't exit, your process will wait until the child process has exited.
+
+\subsubsection{child\_process.execFileSync(command{[}, args{]}{[},
+options{]})}\label{childux5fprocess.execfilesynccommand-args-options}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{command} \{String\} The command to run
+\item
+  \texttt{args} \{Array\} List of string arguments
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{input} \{String\textbar{}Buffer\} The value which will be
+  passed as stdin to the spawned process
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    supplying this value will override \texttt{stdio{[}0{]}}
+  \end{itemize}
+\item
+  \texttt{stdio} \{Array\} Child's stdio configuration. (Default:
+  `pipe')
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    \texttt{stderr} by default will be output to the parent process'
+    stderr unless \texttt{stdio} is specified
+  \end{itemize}
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  \texttt{timeout} \{Number\} In milliseconds the maximum amount of time
+  the process is allowed to run. (Default: undefined)
+\item
+  \texttt{killSignal} \{String\} The signal value to be used when the
+  spawned process will be killed. (Default: `SIGTERM')
+\item
+  \texttt{maxBuffer} \{Number\}
+\item
+  \texttt{encoding} \{String\} The encoding used for all stdio inputs
+  and outputs. (Default: `buffer')
+\item
+  return: \{Buffer\textbar{}String\} The stdout from the command
+\end{itemize}
+
+\texttt{execFileSync} will not return until the child process has fully
+closed. When a timeout has been encountered and \texttt{killSignal} is
+sent, the method won't return until the process has completely exited.
+That is to say, if the process handles the \texttt{SIGTERM} signal and
+doesn't exit, your process will wait until the child process has exited.
+
+If the process times out, or has a non-zero exit code, this method
+\textbf{\emph{will}} throw. The \texttt{Error} object will contain the
+entire result from
+\hyperref[childux5fprocessux5fchildux5fprocessux5fspawnsyncux5fcommandux5fargsux5foptions]{\texttt{child\_process.spawnSync}}
+
+\subsubsection{child\_process.execSync(command{[},
+options{]})}\label{childux5fprocess.execsynccommand-options}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{command} \{String\} The command to run
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{cwd} \{String\} Current working directory of the child process
+\item
+  \texttt{input} \{String\textbar{}Buffer\} The value which will be
+  passed as stdin to the spawned process
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    supplying this value will override \texttt{stdio{[}0{]}}
+  \end{itemize}
+\item
+  \texttt{stdio} \{Array\} Child's stdio configuration. (Default:
+  `pipe')
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    \texttt{stderr} by default will be output to the parent process'
+    stderr unless \texttt{stdio} is specified
+  \end{itemize}
+\item
+  \texttt{env} \{Object\} Environment key-value pairs
+\item
+  \texttt{uid} \{Number\} Sets the user identity of the process. (See
+  setuid(2).)
+\item
+  \texttt{gid} \{Number\} Sets the group identity of the process. (See
+  setgid(2).)
+\item
+  \texttt{timeout} \{Number\} In milliseconds the maximum amount of time
+  the process is allowed to run. (Default: undefined)
+\item
+  \texttt{killSignal} \{String\} The signal value to be used when the
+  spawned process will be killed. (Default: `SIGTERM')
+\item
+  \texttt{maxBuffer} \{Number\}
+\item
+  \texttt{encoding} \{String\} The encoding used for all stdio inputs
+  and outputs. (Default: `buffer')
+\item
+  return: \{Buffer\textbar{}String\} The stdout from the command
+\end{itemize}
+
+\texttt{execSync} will not return until the child process has fully
+closed. When a timeout has been encountered and \texttt{killSignal} is
+sent, the method won't return until the process has completely exited.
+That is to say, if the process handles the \texttt{SIGTERM} signal and
+doesn't exit, your process will wait until the child process has exited.
+
+If the process times out, or has a non-zero exit code, this method
+\textbf{\emph{will}} throw. The \texttt{Error} object will contain the
+entire result from
+\hyperref[childux5fprocessux5fchildux5fprocessux5fspawnsyncux5fcommandux5fargsux5foptions]{\texttt{child\_process.spawnSync}}

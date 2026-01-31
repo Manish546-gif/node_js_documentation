@@ -1,0 +1,29 @@
+\section{Synopsis}\label{synopsis}
+
+An example of a \href{http.html}{web server} written with Node which
+responds with `Hello World':
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{http = }\FunctionTok{require}\NormalTok{(}\StringTok{'http'}\NormalTok{);}
+
+\OtherTok{http}\NormalTok{.}\FunctionTok{createServer}\NormalTok{(}\KeywordTok{function} \NormalTok{(request, response) \{}
+  \OtherTok{response}\NormalTok{.}\FunctionTok{writeHead}\NormalTok{(}\DecValTok{200}\NormalTok{, \{}\StringTok{'Content-Type'}\NormalTok{: }\StringTok{'text/plain'}\NormalTok{\});}
+  \OtherTok{response}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{'Hello World}\CharTok{\textbackslash{}n}\StringTok{'}\NormalTok{);}
+\NormalTok{\}).}\FunctionTok{listen}\NormalTok{(}\DecValTok{8124}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Server running at http://127.0.0.1:8124/'}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+To run the server, put the code into a file called \texttt{example.js}
+and execute it with the node program
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{> node }\OtherTok{example}\NormalTok{.}\FunctionTok{js}
+\NormalTok{Server running at http:}\CommentTok{//127.0.0.1:8124/}
+\end{Highlighting}
+\end{Shaded}
+
+All of the examples in the documentation can be run similarly.

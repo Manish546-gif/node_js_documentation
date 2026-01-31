@@ -1,0 +1,188 @@
+\section{Events}\label{events}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{4} \NormalTok{- API Frozen}
+\end{Highlighting}
+\end{Shaded}
+
+Many objects in Node emit events: a \texttt{net.Server} emits an event
+each time a peer connects to it, a \texttt{fs.readStream} emits an event
+when the file is opened. All objects which emit events are instances of
+\texttt{events.EventEmitter}. You can access this module by doing:
+\texttt{require("events");}
+
+Typically, event names are represented by a camel-cased string, however,
+there aren't any strict restrictions on that, as any string will be
+accepted.
+
+Functions can then be attached to objects, to be executed when an event
+is emitted. These functions are called \emph{listeners}. Inside a
+listener function, \texttt{this} refers to the \texttt{EventEmitter}
+that the listener was attached to.
+
+\subsection{Class: events.EventEmitter}\label{class-events.eventemitter}
+
+To access the EventEmitter class,
+\texttt{require(\textquotesingle{}events\textquotesingle{}).EventEmitter}.
+
+When an \texttt{EventEmitter} instance experiences an error, the typical
+action is to emit an \texttt{\textquotesingle{}error\textquotesingle{}}
+event. Error events are treated as a special case in node. If there is
+no listener for it, then the default action is to print a stack trace
+and exit the program.
+
+All EventEmitters emit the event
+\texttt{\textquotesingle{}newListener\textquotesingle{}} when new
+listeners are added and
+\texttt{\textquotesingle{}removeListener\textquotesingle{}} when a
+listener is removed.
+
+\subsubsection{emitter.addListener(event,
+listener)}\label{emitter.addlistenerevent-listener}
+
+\subsubsection{emitter.on(event,
+listener)}\label{emitter.onevent-listener}
+
+Adds a listener to the end of the listeners array for the specified
+\texttt{event}. No checks are made to see if the \texttt{listener} has
+already been added. Multiple calls passing the same combination of
+\texttt{event} and \texttt{listener} will result in the
+\texttt{listener} being added multiple times.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'connection'}\NormalTok{, }\KeywordTok{function} \NormalTok{(stream) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'someone connected!'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Returns emitter, so calls can be chained.
+
+\subsubsection{emitter.once(event,
+listener)}\label{emitter.onceevent-listener}
+
+Adds a \textbf{one time} listener for the event. This listener is
+invoked only the next time the event is fired, after which it is
+removed.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{server}\NormalTok{.}\FunctionTok{once}\NormalTok{(}\StringTok{'connection'}\NormalTok{, }\KeywordTok{function} \NormalTok{(stream) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Ah, we have our first user!'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Returns emitter, so calls can be chained.
+
+\subsubsection{emitter.removeListener(event,
+listener)}\label{emitter.removelistenerevent-listener}
+
+Remove a listener from the listener array for the specified event.
+\textbf{Caution}: changes array indices in the listener array behind the
+listener.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{callback = }\KeywordTok{function}\NormalTok{(stream) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'someone connected!'}\NormalTok{);}
+\NormalTok{\};}
+\OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'connection'}\NormalTok{, callback);}
+\CommentTok{// ...}
+\OtherTok{server}\NormalTok{.}\FunctionTok{removeListener}\NormalTok{(}\StringTok{'connection'}\NormalTok{, callback);}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{removeListener} will remove, at most, one instance of a listener
+from the listener array. If any single listener has been added multiple
+times to the listener array for the specified \texttt{event}, then
+\texttt{removeListener} must be called multiple times to remove each
+instance.
+
+Returns emitter, so calls can be chained.
+
+\subsubsection{emitter.removeAllListeners({[}event{]})}\label{emitter.removealllistenersevent}
+
+Removes all listeners, or those of the specified event. It's not a good
+idea to remove listeners that were added elsewhere in the code,
+especially when it's on an emitter that you didn't create (e.g.~sockets
+or file streams).
+
+Returns emitter, so calls can be chained.
+
+\subsubsection{emitter.setMaxListeners(n)}\label{emitter.setmaxlistenersn}
+
+By default EventEmitters will print a warning if more than 10 listeners
+are added for a particular event. This is a useful default which helps
+finding memory leaks. Obviously not all Emitters should be limited to
+10. This function allows that to be increased. Set to zero for
+unlimited.
+
+Returns emitter, so calls can be chained.
+
+\subsubsection{EventEmitter.defaultMaxListeners}\label{eventemitter.defaultmaxlisteners}
+
+\texttt{emitter.setMaxListeners(n)} sets the maximum on a per-instance
+basis. This class property lets you set it for \emph{all}
+\texttt{EventEmitter} instances, current and future, effective
+immediately. Use with care.
+
+Note that \texttt{emitter.setMaxListeners(n)} still has precedence over
+\texttt{EventEmitter.defaultMaxListeners}.
+
+\subsubsection{emitter.listeners(event)}\label{emitter.listenersevent}
+
+Returns an array of listeners for the specified event.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'connection'}\NormalTok{, }\KeywordTok{function} \NormalTok{(stream) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'someone connected!'}\NormalTok{);}
+\NormalTok{\});}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{util}\NormalTok{.}\FunctionTok{inspect}\NormalTok{(}\OtherTok{server}\NormalTok{.}\FunctionTok{listeners}\NormalTok{(}\StringTok{'connection'}\NormalTok{))); }\CommentTok{// [ [Function] ]}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{emitter.emit(event{[}, arg1{]}{[}, arg2{]}{[},
+\ldots{}{]})}\label{emitter.emitevent-arg1-arg2}
+
+Execute each of the listeners in order with the supplied arguments.
+
+Returns \texttt{true} if event had listeners, \texttt{false} otherwise.
+
+\subsubsection{Class Method: EventEmitter.listenerCount(emitter,
+event)}\label{class-method-eventemitter.listenercountemitter-event}
+
+Return the number of listeners for a given event.
+
+\subsubsection{\texorpdfstring{Event:
+`newListener'}{Event: newListener}}\label{event-newlistener}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{event} \{String\} The event name
+\item
+  \texttt{listener} \{Function\} The event handler function
+\end{itemize}
+
+This event is emitted any time a listener is added. When this event is
+triggered, the listener may not yet have been added to the array of
+listeners for the \texttt{event}.
+
+\subsubsection{\texorpdfstring{Event:
+`removeListener'}{Event: removeListener}}\label{event-removelistener}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{event} \{String\} The event name
+\item
+  \texttt{listener} \{Function\} The event handler function
+\end{itemize}
+
+This event is emitted any time someone removes a listener. When this
+event is triggered, the listener may not yet have been removed from the
+array of listeners for the \texttt{event}.

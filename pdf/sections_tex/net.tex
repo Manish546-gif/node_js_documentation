@@ -1,0 +1,819 @@
+\section{net}\label{net}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+The \texttt{net} module provides you with an asynchronous network
+wrapper. It contains methods for creating both servers and clients
+(called streams). You can include this module with
+\texttt{require(\textquotesingle{}net\textquotesingle{});}
+
+\subsection{net.createServer({[}options{]}{[},
+connectionListener{]})}\label{net.createserveroptions-connectionlistener}
+
+Creates a new TCP server. The \texttt{connectionListener} argument is
+automatically set as a listener for the
+\hyperref[netux5feventux5fconnection]{`connection'} event.
+
+\texttt{options} is an object with the following defaults:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{}
+  \DataTypeTok{allowHalfOpen}\NormalTok{: }\KeywordTok{false}\NormalTok{,}
+  \DataTypeTok{pauseOnConnect}\NormalTok{: }\KeywordTok{false}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+If \texttt{allowHalfOpen} is \texttt{true}, then the socket won't
+automatically send a FIN packet when the other end of the socket sends a
+FIN packet. The socket becomes non-readable, but still writable. You
+should call the \texttt{end()} method explicitly. See
+\hyperref[netux5feventux5fend]{`end'} event for more information.
+
+If \texttt{pauseOnConnect} is \texttt{true}, then the socket associated
+with each incoming connection will be paused, and no data will be read
+from its handle. This allows connections to be passed between processes
+without any data being read by the original process. To begin reading
+data from a paused socket, call \texttt{resume()}.
+
+Here is an example of an echo server which listens for connections on
+port 8124:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{net = }\FunctionTok{require}\NormalTok{(}\StringTok{'net'}\NormalTok{);}
+\KeywordTok{var} \NormalTok{server = }\OtherTok{net}\NormalTok{.}\FunctionTok{createServer}\NormalTok{(}\KeywordTok{function}\NormalTok{(c) \{ }\CommentTok{//'connection' listener}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'client connected'}\NormalTok{);}
+  \OtherTok{c}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'end'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'client disconnected'}\NormalTok{);}
+  \NormalTok{\});}
+  \OtherTok{c}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{'hello}\CharTok{\textbackslash{}r\textbackslash{}n}\StringTok{'}\NormalTok{);}
+  \OtherTok{c}\NormalTok{.}\FunctionTok{pipe}\NormalTok{(c);}
+\NormalTok{\});}
+\OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(}\DecValTok{8124}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{ }\CommentTok{//'listening' listener}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'server bound'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Test this by using \texttt{telnet}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{telnet localhost }\DecValTok{8124}
+\end{Highlighting}
+\end{Shaded}
+
+To listen on the socket \texttt{/tmp/echo.sock} the third line from the
+last would just be changed to
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(}\StringTok{'/tmp/echo.sock'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{ }\CommentTok{//'listening' listener}
+\end{Highlighting}
+\end{Shaded}
+
+Use \texttt{nc} to connect to a UNIX domain socket server:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{nc -U /tmp/}\OtherTok{echo}\NormalTok{.}\FunctionTok{sock}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{net.connect(options{[},
+connectionListener{]})}\label{net.connectoptions-connectionlistener}
+
+\subsection{net.createConnection(options{[},
+connectionListener{]})}\label{net.createconnectionoptions-connectionlistener}
+
+A factory method, which returns a new
+\hyperref[netux5fclassux5fnetux5fsocket]{`net.Socket'} and connects to
+the supplied address and port.
+
+When the socket is established, the
+\hyperref[netux5feventux5fconnect]{`connect'} event will be emitted.
+
+Has the same events as
+\hyperref[netux5fclassux5fnetux5fsocket]{`net.Socket'}.
+
+For TCP sockets, \texttt{options} argument should be an object which
+specifies:
+
+\begin{itemize}
+\item
+  \texttt{port}: Port the client should connect to (Required).
+\item
+  \texttt{host}: Host the client should connect to. Defaults to
+  \texttt{\textquotesingle{}localhost\textquotesingle{}}.
+\item
+  \texttt{localAddress}: Local interface to bind to for network
+  connections.
+\item
+  \texttt{localPort}: Local port to bind to for network connections.
+\item
+  \texttt{family} : Version of IP stack. Defaults to \texttt{4}.
+\end{itemize}
+
+For local domain sockets, \texttt{options} argument should be an object
+which specifies:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{path}: Path the client should connect to (Required).
+\end{itemize}
+
+Common options are:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{allowHalfOpen}: if \texttt{true}, the socket won't
+  automatically send a FIN packet when the other end of the socket sends
+  a FIN packet. Defaults to \texttt{false}. See
+  \hyperref[netux5feventux5fend]{`end'} event for more information.
+\end{itemize}
+
+The \texttt{connectListener} parameter will be added as an listener for
+the \hyperref[netux5feventux5fconnect]{`connect'} event.
+
+Here is an example of a client of echo server as described previously:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{net = }\FunctionTok{require}\NormalTok{(}\StringTok{'net'}\NormalTok{);}
+\KeywordTok{var} \NormalTok{client = }\OtherTok{net}\NormalTok{.}\FunctionTok{connect}\NormalTok{(\{}\DataTypeTok{port}\NormalTok{: }\DecValTok{8124}\NormalTok{\},}
+    \KeywordTok{function}\NormalTok{() \{ }\CommentTok{//'connect' listener}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'connected to server!'}\NormalTok{);}
+  \OtherTok{client}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{'world!}\CharTok{\textbackslash{}r\textbackslash{}n}\StringTok{'}\NormalTok{);}
+\NormalTok{\});}
+\OtherTok{client}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function}\NormalTok{(data) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{data}\NormalTok{.}\FunctionTok{toString}\NormalTok{());}
+  \OtherTok{client}\NormalTok{.}\FunctionTok{end}\NormalTok{();}
+\NormalTok{\});}
+\OtherTok{client}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'end'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'disconnected from server'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+To connect on the socket \texttt{/tmp/echo.sock} the second line would
+just be changed to
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{client = }\OtherTok{net}\NormalTok{.}\FunctionTok{connect}\NormalTok{(\{}\DataTypeTok{path}\NormalTok{: }\StringTok{'/tmp/echo.sock'}\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{net.connect(port{[}, host{]}{[},
+connectListener{]})}\label{net.connectport-host-connectlistener}
+
+\subsection{net.createConnection(port{[}, host{]}{[},
+connectListener{]})}\label{net.createconnectionport-host-connectlistener}
+
+Creates a TCP connection to \texttt{port} on \texttt{host}. If
+\texttt{host} is omitted,
+\texttt{\textquotesingle{}localhost\textquotesingle{}} will be assumed.
+The \texttt{connectListener} parameter will be added as an listener for
+the \hyperref[netux5feventux5fconnect]{`connect'} event.
+
+Is a factory method which returns a new
+\hyperref[netux5fclassux5fnetux5fsocket]{`net.Socket'}.
+
+\subsection{net.connect(path{[},
+connectListener{]})}\label{net.connectpath-connectlistener}
+
+\subsection{net.createConnection(path{[},
+connectListener{]})}\label{net.createconnectionpath-connectlistener}
+
+Creates unix socket connection to \texttt{path}. The
+\texttt{connectListener} parameter will be added as an listener for the
+\hyperref[netux5feventux5fconnect]{`connect'} event.
+
+A factory method which returns a new
+\hyperref[netux5fclassux5fnetux5fsocket]{`net.Socket'}.
+
+\subsection{Class: net.Server}\label{class-net.server}
+
+This class is used to create a TCP or local server.
+
+\subsubsection{server.listen(port{[}, host{]}{[}, backlog{]}{[},
+callback{]})}\label{server.listenport-host-backlog-callback}
+
+Begin accepting connections on the specified \texttt{port} and
+\texttt{host}. If the \texttt{host} is omitted, the server will accept
+connections directed to any IPv4 address (\texttt{INADDR\_ANY}). A port
+value of zero will assign a random port.
+
+Backlog is the maximum length of the queue of pending connections. The
+actual length will be determined by your OS through sysctl settings such
+as \texttt{tcp\_max\_syn\_backlog} and \texttt{somaxconn} on linux. The
+default value of this parameter is 511 (not 512).
+
+This function is asynchronous. When the server has been bound,
+\hyperref[netux5feventux5flistening]{`listening'} event will be emitted.
+The last parameter \texttt{callback} will be added as an listener for
+the \hyperref[netux5feventux5flistening]{`listening'} event.
+
+One issue some users run into is getting \texttt{EADDRINUSE} errors.
+This means that another server is already running on the requested port.
+One way of handling this would be to wait a second and then try again.
+This can be done with
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{server}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'error'}\NormalTok{, }\KeywordTok{function} \NormalTok{(e) \{}
+  \KeywordTok{if} \NormalTok{(}\OtherTok{e}\NormalTok{.}\FunctionTok{code} \NormalTok{== }\StringTok{'EADDRINUSE'}\NormalTok{) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Address in use, retrying...'}\NormalTok{);}
+    \FunctionTok{setTimeout}\NormalTok{(}\KeywordTok{function} \NormalTok{() \{}
+      \OtherTok{server}\NormalTok{.}\FunctionTok{close}\NormalTok{();}
+      \OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(PORT, HOST);}
+    \NormalTok{\}, }\DecValTok{1000}\NormalTok{);}
+  \NormalTok{\}}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+(Note: All sockets in Node set \texttt{SO\_REUSEADDR} already)
+
+\subsubsection{server.listen(path{[},
+callback{]})}\label{server.listenpath-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{path} \{String\}
+\item
+  \texttt{callback} \{Function\}
+\end{itemize}
+
+Start a local socket server listening for connections on the given
+\texttt{path}.
+
+This function is asynchronous. When the server has been bound,
+\hyperref[netux5feventux5flistening]{`listening'} event will be emitted.
+The last parameter \texttt{callback} will be added as an listener for
+the \hyperref[netux5feventux5flistening]{`listening'} event.
+
+On UNIX, the local domain is usually known as the UNIX domain. The path
+is a filesystem path name. It is subject to the same naming conventions
+and permissions checks as would be done on file creation, will be
+visible in the filesystem, and will \emph{persist until unlinked}.
+
+On Windows, the local domain is implemented using a named pipe. The path
+\emph{must} refer to an entry in
+\texttt{\textbackslash{}\textbackslash{}?\textbackslash{}pipe\textbackslash{}}
+or
+\texttt{\textbackslash{}\textbackslash{}.\textbackslash{}pipe\textbackslash{}}.
+Any characters are permitted, but the latter may do some processing of
+pipe names, such as resolving \texttt{..} sequences. Despite
+appearances, the pipe name space is flat. Pipes will \emph{not persist},
+they are removed when the last reference to them is closed. Do not
+forget javascript string escaping requires paths to be specified with
+double-backslashes, such as:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{net}\NormalTok{.}\FunctionTok{createServer}\NormalTok{().}\FunctionTok{listen}\NormalTok{(}
+    \OtherTok{path}\NormalTok{.}\FunctionTok{join}\NormalTok{(}\StringTok{'}\CharTok{\textbackslash{}\textbackslash{}\textbackslash{}\textbackslash{}}\StringTok{?}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{pipe'}\NormalTok{, }\OtherTok{process}\NormalTok{.}\FunctionTok{cwd}\NormalTok{(), }\StringTok{'myctl'}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{server.listen(handle{[},
+callback{]})}\label{server.listenhandle-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{handle} \{Object\}
+\item
+  \texttt{callback} \{Function\}
+\end{itemize}
+
+The \texttt{handle} object can be set to either a server or socket
+(anything with an underlying \texttt{\_handle} member), or a
+\texttt{\{fd:\ \textless{}n\textgreater{}\}} object.
+
+This will cause the server to accept connections on the specified
+handle, but it is presumed that the file descriptor or handle has
+already been bound to a port or domain socket.
+
+Listening on a file descriptor is not supported on Windows.
+
+This function is asynchronous. When the server has been bound,
+\hyperref[netux5feventux5flistening]{`listening'} event will be emitted.
+the last parameter \texttt{callback} will be added as an listener for
+the \hyperref[netux5feventux5flistening]{`listening'} event.
+
+\subsubsection{server.listen(options{[},
+callback{]})}\label{server.listenoptions-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{options} \{Object\} - Required. Supports the following
+  properties:
+\item
+  \texttt{port} \{Number\} - Optional.
+\item
+  \texttt{host} \{String\} - Optional.
+\item
+  \texttt{backlog} \{Number\} - Optional.
+\item
+  \texttt{path} \{String\} - Optional.
+\item
+  \texttt{exclusive} \{Boolean\} - Optional.
+\item
+  \texttt{callback} \{Function\} - Optional.
+\end{itemize}
+
+The \texttt{port}, \texttt{host}, and \texttt{backlog} properties of
+\texttt{options}, as well as the optional callback function, behave as
+they do on a call to
+\hyperref[netux5fserverux5flistenux5fportux5fhostux5fbacklogux5fcallback]{server.listen(port,
+{[}host{]}, {[}backlog{]}, {[}callback{]})}. Alternatively, the
+\texttt{path} option can be used to specify a UNIX socket.
+
+If \texttt{exclusive} is \texttt{false} (default), then cluster workers
+will use the same underlying handle, allowing connection handling duties
+to be shared. When \texttt{exclusive} is \texttt{true}, the handle is
+not shared, and attempted port sharing results in an error. An example
+which listens on an exclusive port is shown below.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(\{}
+  \DataTypeTok{host}\NormalTok{: }\StringTok{'localhost'}\NormalTok{,}
+  \DataTypeTok{port}\NormalTok{: }\DecValTok{80}\NormalTok{,}
+  \DataTypeTok{exclusive}\NormalTok{: }\KeywordTok{true}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{server.close({[}callback{]})}\label{server.closecallback}
+
+Stops the server from accepting new connections and keeps existing
+connections. This function is asynchronous, the server is finally closed
+when all connections are ended and the server emits a
+\texttt{\textquotesingle{}close\textquotesingle{}} event. Optionally,
+you can pass a callback to listen for the
+\texttt{\textquotesingle{}close\textquotesingle{}} event. If present,
+the callback is invoked with any potential error as the first and only
+argument.
+
+\subsubsection{server.address()}\label{server.address}
+
+Returns the bound address, the address family name and port of the
+server as reported by the operating system. Useful to find which port
+was assigned when giving getting an OS-assigned address. Returns an
+object with three properties, e.g.
+\texttt{\{\ port:\ 12346,\ family:\ \textquotesingle{}IPv4\textquotesingle{},\ address:\ \textquotesingle{}127.0.0.1\textquotesingle{}\ \}}
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{server = }\OtherTok{net}\NormalTok{.}\FunctionTok{createServer}\NormalTok{(}\KeywordTok{function} \NormalTok{(socket) \{}
+  \OtherTok{socket}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{"goodbye}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{);}
+\NormalTok{\});}
+
+\CommentTok{// grab a random port.}
+\OtherTok{server}\NormalTok{.}\FunctionTok{listen}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+  \NormalTok{address = }\OtherTok{server}\NormalTok{.}\FunctionTok{address}\NormalTok{();}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{"opened server on %j"}\NormalTok{, address);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Don't call \texttt{server.address()} until the
+\texttt{\textquotesingle{}listening\textquotesingle{}} event has been
+emitted.
+
+\subsubsection{server.unref()}\label{server.unref}
+
+Calling \texttt{unref} on a server will allow the program to exit if
+this is the only active server in the event system. If the server is
+already \texttt{unref}d calling \texttt{unref} again will have no
+effect.
+
+\subsubsection{server.ref()}\label{server.ref}
+
+Opposite of \texttt{unref}, calling \texttt{ref} on a previously
+\texttt{unref}d server will \emph{not} let the program exit if it's the
+only server left (the default behavior). If the server is \texttt{ref}d
+calling \texttt{ref} again will have no effect.
+
+\subsubsection{server.maxConnections}\label{server.maxconnections}
+
+Set this property to reject connections when the server's connection
+count gets high.
+
+It is not recommended to use this option once a socket has been sent to
+a child with \texttt{child\_process.fork()}.
+
+\subsubsection{server.connections}\label{server.connections}
+
+This function is \textbf{deprecated}; please use
+\hyperref[netux5fserverux5fgetconnectionsux5fcallback]{server.getConnections()}
+instead. The number of concurrent connections on the server.
+
+This becomes \texttt{null} when sending a socket to a child with
+\texttt{child\_process.fork()}. To poll forks and get current number of
+active connections use asynchronous \texttt{server.getConnections}
+instead.
+
+\subsubsection{server.getConnections(callback)}\label{server.getconnectionscallback}
+
+Asynchronously get the number of concurrent connections on the server.
+Works when sockets were sent to forks.
+
+Callback should take two arguments \texttt{err} and \texttt{count}.
+
+\texttt{net.Server} is an
+\href{events.html\#events_class_events_eventemitter}{EventEmitter} with
+the following events:
+
+\subsubsection{\texorpdfstring{Event:
+`listening'}{Event: listening}}\label{event-listening}
+
+Emitted when the server has been bound after calling
+\texttt{server.listen}.
+
+\subsubsection{\texorpdfstring{Event:
+`connection'}{Event: connection}}\label{event-connection}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Socket object\} The connection object
+\end{itemize}
+
+Emitted when a new connection is made. \texttt{socket} is an instance of
+\texttt{net.Socket}.
+
+\subsubsection{\texorpdfstring{Event:
+`close'}{Event: close}}\label{event-close}
+
+Emitted when the server closes. Note that if connections exist, this
+event is not emitted until all connections are ended.
+
+\subsubsection{\texorpdfstring{Event:
+`error'}{Event: error}}\label{event-error}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Error Object\}
+\end{itemize}
+
+Emitted when an error occurs. The
+\texttt{\textquotesingle{}close\textquotesingle{}} event will be called
+directly following this event. See example in discussion of
+\texttt{server.listen}.
+
+\subsection{Class: net.Socket}\label{class-net.socket}
+
+This object is an abstraction of a TCP or local socket.
+\texttt{net.Socket} instances implement a duplex Stream interface. They
+can be created by the user and used as a client (with
+\texttt{connect()}) or they can be created by Node and passed to the
+user through the \texttt{\textquotesingle{}connection\textquotesingle{}}
+event of a server.
+
+\subsubsection{new
+net.Socket({[}options{]})}\label{new-net.socketoptions}
+
+Construct a new socket object.
+
+\texttt{options} is an object with the following defaults:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{fd}\NormalTok{: }\KeywordTok{null}
+  \DataTypeTok{allowHalfOpen}\NormalTok{: }\KeywordTok{false}\NormalTok{,}
+  \DataTypeTok{readable}\NormalTok{: }\KeywordTok{false}\NormalTok{,}
+  \DataTypeTok{writable}\NormalTok{: }\KeywordTok{false}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{fd} allows you to specify the existing file descriptor of
+socket. Set \texttt{readable} and/or \texttt{writable} to \texttt{true}
+to allow reads and/or writes on this socket (NOTE: Works only when
+\texttt{fd} is passed). About \texttt{allowHalfOpen}, refer to
+\texttt{createServer()} and
+\texttt{\textquotesingle{}end\textquotesingle{}} event.
+
+\subsubsection{socket.connect(port{[}, host{]}{[},
+connectListener{]})}\label{socket.connectport-host-connectlistener}
+
+\subsubsection{socket.connect(path{[},
+connectListener{]})}\label{socket.connectpath-connectlistener}
+
+Opens the connection for a given socket. If \texttt{port} and
+\texttt{host} are given, then the socket will be opened as a TCP socket,
+if \texttt{host} is omitted, \texttt{localhost} will be assumed. If a
+\texttt{path} is given, the socket will be opened as a unix socket to
+that path.
+
+Normally this method is not needed, as \texttt{net.createConnection}
+opens the socket. Use this only if you are implementing a custom Socket.
+
+This function is asynchronous. When the
+\hyperref[netux5feventux5fconnect]{`connect'} event is emitted the
+socket is established. If there is a problem connecting, the
+\texttt{\textquotesingle{}connect\textquotesingle{}} event will not be
+emitted, the \texttt{\textquotesingle{}error\textquotesingle{}} event
+will be emitted with the exception.
+
+The \texttt{connectListener} parameter will be added as an listener for
+the \hyperref[netux5feventux5fconnect]{`connect'} event.
+
+\subsubsection{socket.bufferSize}\label{socket.buffersize}
+
+\texttt{net.Socket} has the property that \texttt{socket.write()} always
+works. This is to help users get up and running quickly. The computer
+cannot always keep up with the amount of data that is written to a
+socket - the network connection simply might be too slow. Node will
+internally queue up the data written to a socket and send it out over
+the wire when it is possible. (Internally it is polling on the socket's
+file descriptor for being writable).
+
+The consequence of this internal buffering is that memory may grow. This
+property shows the number of characters currently buffered to be
+written. (Number of characters is approximately equal to the number of
+bytes to be written, but the buffer may contain strings, and the strings
+are lazily encoded, so the exact number of bytes is not known.)
+
+Users who experience large or growing \texttt{bufferSize} should attempt
+to ``throttle'' the data flows in their program with \texttt{pause()}
+and \texttt{resume()}.
+
+\subsubsection{socket.setEncoding({[}encoding{]})}\label{socket.setencodingencoding}
+
+Set the encoding for the socket as a Readable Stream. See
+\href{stream.html\#stream_stream_setencoding_encoding}{stream.setEncoding()}
+for more information.
+
+\subsubsection{socket.write(data{[}, encoding{]}{[},
+callback{]})}\label{socket.writedata-encoding-callback}
+
+Sends data on the socket. The second parameter specifies the encoding in
+the case of a string--it defaults to UTF8 encoding.
+
+Returns \texttt{true} if the entire data was flushed successfully to the
+kernel buffer. Returns \texttt{false} if all or part of the data was
+queued in user memory.
+\texttt{\textquotesingle{}drain\textquotesingle{}} will be emitted when
+the buffer is again free.
+
+The optional \texttt{callback} parameter will be executed when the data
+is finally written out - this may not be immediately.
+
+\subsubsection{socket.end({[}data{]}{[},
+encoding{]})}\label{socket.enddata-encoding}
+
+Half-closes the socket. i.e., it sends a FIN packet. It is possible the
+server will still send some data.
+
+If \texttt{data} is specified, it is equivalent to calling
+\texttt{socket.write(data,\ encoding)} followed by
+\texttt{socket.end()}.
+
+\subsubsection{socket.destroy()}\label{socket.destroy}
+
+Ensures that no more I/O activity happens on this socket. Only necessary
+in case of errors (parse error or so).
+
+\subsubsection{socket.pause()}\label{socket.pause}
+
+Pauses the reading of data. That is,
+\texttt{\textquotesingle{}data\textquotesingle{}} events will not be
+emitted. Useful to throttle back an upload.
+
+\subsubsection{socket.resume()}\label{socket.resume}
+
+Resumes reading after a call to \texttt{pause()}.
+
+\subsubsection{socket.setTimeout(timeout{[},
+callback{]})}\label{socket.settimeouttimeout-callback}
+
+Sets the socket to timeout after \texttt{timeout} milliseconds of
+inactivity on the socket. By default \texttt{net.Socket} do not have a
+timeout.
+
+When an idle timeout is triggered the socket will receive a
+\texttt{\textquotesingle{}timeout\textquotesingle{}} event but the
+connection will not be severed. The user must manually \texttt{end()} or
+\texttt{destroy()} the socket.
+
+If \texttt{timeout} is 0, then the existing idle timeout is disabled.
+
+The optional \texttt{callback} parameter will be added as a one time
+listener for the \texttt{\textquotesingle{}timeout\textquotesingle{}}
+event.
+
+\subsubsection{socket.setNoDelay({[}noDelay{]})}\label{socket.setnodelaynodelay}
+
+Disables the Nagle algorithm. By default TCP connections use the Nagle
+algorithm, they buffer data before sending it off. Setting \texttt{true}
+for \texttt{noDelay} will immediately fire off data each time
+\texttt{socket.write()} is called. \texttt{noDelay} defaults to
+\texttt{true}.
+
+\subsubsection{socket.setKeepAlive({[}enable{]}{[},
+initialDelay{]})}\label{socket.setkeepaliveenable-initialdelay}
+
+Enable/disable keep-alive functionality, and optionally set the initial
+delay before the first keepalive probe is sent on an idle socket.
+\texttt{enable} defaults to \texttt{false}.
+
+Set \texttt{initialDelay} (in milliseconds) to set the delay between the
+last data packet received and the first keepalive probe. Setting 0 for
+initialDelay will leave the value unchanged from the default (or
+previous) setting. Defaults to \texttt{0}.
+
+\subsubsection{socket.address()}\label{socket.address}
+
+Returns the bound address, the address family name and port of the
+socket as reported by the operating system. Returns an object with three
+properties, e.g.
+\texttt{\{\ port:\ 12346,\ family:\ \textquotesingle{}IPv4\textquotesingle{},\ address:\ \textquotesingle{}127.0.0.1\textquotesingle{}\ \}}
+
+\subsubsection{socket.unref()}\label{socket.unref}
+
+Calling \texttt{unref} on a socket will allow the program to exit if
+this is the only active socket in the event system. If the socket is
+already \texttt{unref}d calling \texttt{unref} again will have no
+effect.
+
+\subsubsection{socket.ref()}\label{socket.ref}
+
+Opposite of \texttt{unref}, calling \texttt{ref} on a previously
+\texttt{unref}d socket will \emph{not} let the program exit if it's the
+only socket left (the default behavior). If the socket is \texttt{ref}d
+calling \texttt{ref} again will have no effect.
+
+\subsubsection{socket.remoteAddress}\label{socket.remoteaddress}
+
+The string representation of the remote IP address. For example,
+\texttt{\textquotesingle{}74.125.127.100\textquotesingle{}} or
+\texttt{\textquotesingle{}2001:4860:a005::68\textquotesingle{}}.
+
+\subsubsection{socket.remoteFamily}\label{socket.remotefamily}
+
+The string representation of the remote IP family.
+\texttt{\textquotesingle{}IPv4\textquotesingle{}} or
+\texttt{\textquotesingle{}IPv6\textquotesingle{}}.
+
+\subsubsection{socket.remotePort}\label{socket.remoteport}
+
+The numeric representation of the remote port. For example, \texttt{80}
+or \texttt{21}.
+
+\subsubsection{socket.localAddress}\label{socket.localaddress}
+
+The string representation of the local IP address the remote client is
+connecting on. For example, if you are listening on
+\texttt{\textquotesingle{}0.0.0.0\textquotesingle{}} and the client
+connects on \texttt{\textquotesingle{}192.168.1.1\textquotesingle{}},
+the value would be
+\texttt{\textquotesingle{}192.168.1.1\textquotesingle{}}.
+
+\subsubsection{socket.localPort}\label{socket.localport}
+
+The numeric representation of the local port. For example, \texttt{80}
+or \texttt{21}.
+
+\subsubsection{socket.bytesRead}\label{socket.bytesread}
+
+The amount of received bytes.
+
+\subsubsection{socket.bytesWritten}\label{socket.byteswritten}
+
+The amount of bytes sent.
+
+\texttt{net.Socket} instances are
+\href{events.html\#events_class_events_eventemitter}{EventEmitter} with
+the following events:
+
+\subsubsection{\texorpdfstring{Event:
+`lookup'}{Event: lookup}}\label{event-lookup}
+
+Emitted after resolving the hostname but before connecting. Not
+applicable to UNIX sockets.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{err} \{Error \textbar{} Null\} The error object. See
+  \href{dns.html\#dns_dns_lookup_domain_family_callback}{dns.lookup()}.
+\item
+  \texttt{address} \{String\} The IP address.
+\item
+  \texttt{family} \{String \textbar{} Null\} The address type. See
+  \href{dns.html\#dns_dns_lookup_domain_family_callback}{dns.lookup()}.
+\end{itemize}
+
+\subsubsection{\texorpdfstring{Event:
+`connect'}{Event: connect}}\label{event-connect}
+
+Emitted when a socket connection is successfully established. See
+\texttt{connect()}.
+
+\subsubsection{\texorpdfstring{Event:
+`data'}{Event: data}}\label{event-data}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Buffer object\}
+\end{itemize}
+
+Emitted when data is received. The argument \texttt{data} will be a
+\texttt{Buffer} or \texttt{String}. Encoding of data is set by
+\texttt{socket.setEncoding()}. (See the
+\href{stream.html\#stream_class_stream_readable}{Readable Stream}
+section for more information.)
+
+Note that the \textbf{data will be lost} if there is no listener when a
+\texttt{Socket} emits a
+\texttt{\textquotesingle{}data\textquotesingle{}} event.
+
+\subsubsection{\texorpdfstring{Event:
+`end'}{Event: end}}\label{event-end}
+
+Emitted when the other end of the socket sends a FIN packet.
+
+By default (\texttt{allowHalfOpen\ ==\ false}) the socket will destroy
+its file descriptor once it has written out its pending write queue.
+However, by setting \texttt{allowHalfOpen\ ==\ true} the socket will not
+automatically \texttt{end()} its side allowing the user to write
+arbitrary amounts of data, with the caveat that the user is required to
+\texttt{end()} their side now.
+
+\subsubsection{\texorpdfstring{Event:
+`timeout'}{Event: timeout}}\label{event-timeout}
+
+Emitted if the socket times out from inactivity. This is only to notify
+that the socket has been idle. The user must manually close the
+connection.
+
+See also: \texttt{socket.setTimeout()}
+
+\subsubsection{\texorpdfstring{Event:
+`drain'}{Event: drain}}\label{event-drain}
+
+Emitted when the write buffer becomes empty. Can be used to throttle
+uploads.
+
+See also: the return values of \texttt{socket.write()}
+
+\subsubsection{\texorpdfstring{Event:
+`error'}{Event: error}}\label{event-error-1}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Error object\}
+\end{itemize}
+
+Emitted when an error occurs. The
+\texttt{\textquotesingle{}close\textquotesingle{}} event will be called
+directly following this event.
+
+\subsubsection{\texorpdfstring{Event:
+`close'}{Event: close}}\label{event-close-1}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{had\_error} \{Boolean\} true if the socket had a transmission
+  error
+\end{itemize}
+
+Emitted once the socket is fully closed. The argument
+\texttt{had\_error} is a boolean which says if the socket was closed due
+to a transmission error.
+
+\subsection{net.isIP(input)}\label{net.isipinput}
+
+Tests if input is an IP address. Returns 0 for invalid strings, returns
+4 for IP version 4 addresses, and returns 6 for IP version 6 addresses.
+
+\subsection{net.isIPv4(input)}\label{net.isipv4input}
+
+Returns true if input is a version 4 IP address, otherwise returns
+false.
+
+\subsection{net.isIPv6(input)}\label{net.isipv6input}
+
+Returns true if input is a version 6 IP address, otherwise returns
+false.

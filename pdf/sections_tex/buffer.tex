@@ -1,0 +1,1267 @@
+\section{Buffer}\label{buffer}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+Pure JavaScript is Unicode friendly but not nice to binary data. When
+dealing with TCP streams or the file system, it's necessary to handle
+octet streams. Node has several strategies for manipulating, creating,
+and consuming octet streams.
+
+Raw data is stored in instances of the \texttt{Buffer} class. A
+\texttt{Buffer} is similar to an array of integers but corresponds to a
+raw memory allocation outside the V8 heap. A \texttt{Buffer} cannot be
+resized.
+
+The \texttt{Buffer} class is a global, making it very rare that one
+would need to ever
+\texttt{require(\textquotesingle{}buffer\textquotesingle{})}.
+
+Converting between Buffers and JavaScript string objects requires an
+explicit encoding method. Here are the different string encodings.
+
+\begin{itemize}
+\item
+  \texttt{\textquotesingle{}ascii\textquotesingle{}} - for 7 bit ASCII
+  data only. This encoding method is very fast, and will strip the high
+  bit if set.
+\item
+  \texttt{\textquotesingle{}utf8\textquotesingle{}} - Multibyte encoded
+  Unicode characters. Many web pages and other document formats use
+  UTF-8.
+\item
+  \texttt{\textquotesingle{}utf16le\textquotesingle{}} - 2 or 4 bytes,
+  little endian encoded Unicode characters. Surrogate pairs (U+10000 to
+  U+10FFFF) are supported.
+\item
+  \texttt{\textquotesingle{}ucs2\textquotesingle{}} - Alias of
+  \texttt{\textquotesingle{}utf16le\textquotesingle{}}.
+\item
+  \texttt{\textquotesingle{}base64\textquotesingle{}} - Base64 string
+  encoding.
+\item
+  \texttt{\textquotesingle{}binary\textquotesingle{}} - A way of
+  encoding raw binary data into strings by using only the first 8 bits
+  of each character. This encoding method is deprecated and should be
+  avoided in favor of \texttt{Buffer} objects where possible. This
+  encoding will be removed in future versions of Node.
+\item
+  \texttt{\textquotesingle{}hex\textquotesingle{}} - Encode each byte as
+  two hexadecimal characters.
+\end{itemize}
+
+Creating a typed array from a \texttt{Buffer} works with the following
+caveats:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  The buffer's memory is copied, not shared.
+\item
+  The buffer's memory is interpreted as an array, not a byte array. That
+  is, \texttt{new\ Uint32Array(new\ Buffer({[}1,2,3,4{]}))} creates a
+  4-element \texttt{Uint32Array} with elements \texttt{{[}1,2,3,4{]}},
+  not an \texttt{Uint32Array} with a single element
+  \texttt{{[}0x1020304{]}} or \texttt{{[}0x4030201{]}}.
+\end{enumerate}
+
+NOTE: Node.js v0.8 simply retained a reference to the buffer in
+\texttt{array.buffer} instead of cloning it.
+
+While more efficient, it introduces subtle incompatibilities with the
+typed arrays specification. \texttt{ArrayBuffer\#slice()} makes a copy
+of the slice while \texttt{Buffer\#slice()} creates a view.
+
+\subsection{Class: Buffer}\label{class-buffer}
+
+The Buffer class is a global type for dealing with binary data directly.
+It can be constructed in a variety of ways.
+
+\subsubsection{new Buffer(size)}\label{new-buffersize}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{size} Number
+\end{itemize}
+
+Allocates a new buffer of \texttt{size} octets. Note, \texttt{size} must
+be no more than
+\href{smalloc.html\#smalloc_smalloc_kmaxlength}{kMaxLength}. Otherwise,
+a \texttt{RangeError} will be thrown here. Unlike \texttt{ArrayBuffers},
+the underlying memory for buffers is not initialized. So the contents of
+a newly created \texttt{Buffer} is unknown. Use \texttt{buf.fill(0)}to
+initialize a buffer to zeroes.
+
+\subsubsection{new Buffer(array)}\label{new-bufferarray}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{array} Array
+\end{itemize}
+
+Allocates a new buffer using an \texttt{array} of octets.
+
+\subsubsection{new Buffer(buffer)}\label{new-bufferbuffer}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{buffer} \{Buffer\}
+\end{itemize}
+
+Copies the passed \texttt{buffer} data onto a new \texttt{Buffer}
+instance.
+
+\subsubsection{new Buffer(str{[},
+encoding{]})}\label{new-bufferstr-encoding}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{str} String - string to encode.
+\item
+  \texttt{encoding} String - encoding to use, Optional.
+\end{itemize}
+
+Allocates a new buffer containing the given \texttt{str}.
+\texttt{encoding} defaults to
+\texttt{\textquotesingle{}utf8\textquotesingle{}}.
+
+\subsubsection{Class Method:
+Buffer.isEncoding(encoding)}\label{class-method-buffer.isencodingencoding}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{encoding} \{String\} The encoding string to test
+\end{itemize}
+
+Returns true if the \texttt{encoding} is a valid encoding argument, or
+false otherwise.
+
+\subsubsection{Class Method:
+Buffer.isBuffer(obj)}\label{class-method-buffer.isbufferobj}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{obj} Object
+\item
+  Return: Boolean
+\end{itemize}
+
+Tests if \texttt{obj} is a \texttt{Buffer}.
+
+\subsubsection{Class Method: Buffer.byteLength(string{[},
+encoding{]})}\label{class-method-buffer.bytelengthstring-encoding}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{string} String
+\item
+  \texttt{encoding} String, Optional, Default: `utf8'
+\item
+  Return: Number
+\end{itemize}
+
+Gives the actual byte length of a string. \texttt{encoding} defaults to
+\texttt{\textquotesingle{}utf8\textquotesingle{}}. This is not the same
+as \texttt{String.prototype.length} since that returns the number of
+\emph{characters} in a string.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{str = }\StringTok{'\textbackslash{}u00bd + \textbackslash{}u00bc = \textbackslash{}u00be'}\NormalTok{;}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(str + }\StringTok{": "} \NormalTok{+ }\OtherTok{str}\NormalTok{.}\FunctionTok{length} \NormalTok{+ }\StringTok{" characters, "} \NormalTok{+}
+  \OtherTok{Buffer}\NormalTok{.}\FunctionTok{byteLength}\NormalTok{(str, }\StringTok{'utf8'}\NormalTok{) + }\StringTok{" bytes"}\NormalTok{);}
+
+\CommentTok{// ½ + ¼ = ¾: 9 characters, 12 bytes}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Class Method: Buffer.concat(list{[},
+totalLength{]})}\label{class-method-buffer.concatlist-totallength}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{list} \{Array\} List of Buffer objects to concat
+\item
+  \texttt{totalLength} \{Number\} Total length of the buffers when
+  concatenated
+\end{itemize}
+
+Returns a buffer which is the result of concatenating all the buffers in
+the list together.
+
+If the list has no items, or if the totalLength is 0, then it returns a
+zero-length buffer.
+
+If the list has exactly one item, then the first item of the list is
+returned.
+
+If the list has more than one item, then a new Buffer is created.
+
+If totalLength is not provided, it is read from the buffers in the list.
+However, this adds an additional loop to the function, so it is faster
+to provide the length explicitly.
+
+\subsubsection{Class Method: Buffer.compare(buf1,
+buf2)}\label{class-method-buffer.comparebuf1-buf2}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{buf1} \{Buffer\}
+\item
+  \texttt{buf2} \{Buffer\}
+\end{itemize}
+
+The same as
+\hyperref[bufferux5fbufux5fcompareux5fotherbuffer]{\texttt{buf1.compare(buf2)}}.
+Useful for sorting an Array of Buffers:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{arr = [}\FunctionTok{Buffer}\NormalTok{(}\StringTok{'1234'}\NormalTok{), }\FunctionTok{Buffer}\NormalTok{(}\StringTok{'0123'}\NormalTok{)];}
+\OtherTok{arr}\NormalTok{.}\FunctionTok{sort}\NormalTok{(}\OtherTok{Buffer}\NormalTok{.}\FunctionTok{compare}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.length}\label{buf.length}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Number
+\end{itemize}
+
+The size of the buffer in bytes. Note that this is not necessarily the
+size of the contents. \texttt{length} refers to the amount of memory
+allocated for the buffer object. It does not change when the contents of
+the buffer are changed.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{1234}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{length}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{"some string"}\NormalTok{, }\DecValTok{0}\NormalTok{, }\StringTok{"ascii"}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{length}\NormalTok{);}
+
+\CommentTok{// 1234}
+\CommentTok{// 1234}
+\end{Highlighting}
+\end{Shaded}
+
+While the \texttt{length} property is not immutable, changing the value
+of \texttt{length} can result in undefined and inconsistent behavior.
+Applications that wish to modify the length of a buffer should therefore
+treat \texttt{length} as read-only and use \texttt{buf.slice} to create
+a new buffer.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{10}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{"abcdefghj"}\NormalTok{, }\DecValTok{0}\NormalTok{, }\StringTok{"ascii"}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{length}\NormalTok{); }\CommentTok{// 10}
+\NormalTok{buf = }\OtherTok{buf}\NormalTok{.}\FunctionTok{slice}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{5}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{length}\NormalTok{); }\CommentTok{// 5}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.write(string{[}, offset{]}{[}, length{]}{[},
+encoding{]})}\label{buf.writestring-offset-length-encoding}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{string} String - data to be written to buffer
+\item
+  \texttt{offset} Number, Optional, Default: 0
+\item
+  \texttt{length} Number, Optional, Default:
+  \texttt{buffer.length\ -\ offset}
+\item
+  \texttt{encoding} String, Optional, Default: `utf8'
+\end{itemize}
+
+Writes \texttt{string} to the buffer at \texttt{offset} using the given
+encoding. \texttt{offset} defaults to \texttt{0}, \texttt{encoding}
+defaults to \texttt{\textquotesingle{}utf8\textquotesingle{}}.
+\texttt{length} is the number of bytes to write. Returns number of
+octets written. If \texttt{buffer} did not contain enough space to fit
+the entire string, it will write a partial amount of the string.
+\texttt{length} defaults to \texttt{buffer.length\ -\ offset}. The
+method will not write partial characters.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{256}\NormalTok{);}
+\NormalTok{len = }\OtherTok{buf}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{'\textbackslash{}u00bd + \textbackslash{}u00bc = \textbackslash{}u00be'}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(len + }\StringTok{" bytes: "} \NormalTok{+ }\OtherTok{buf}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'utf8'}\NormalTok{, }\DecValTok{0}\NormalTok{, len));}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.writeUIntLE(value, offset, byteLength{[},
+noAssert{]})}\label{buf.writeuintlevalue-offset-bytelength-noassert}
+
+\subsubsection{buf.writeUIntBE(value, offset, byteLength{[},
+noAssert{]})}\label{buf.writeuintbevalue-offset-bytelength-noassert}
+
+\subsubsection{buf.writeIntLE(value, offset, byteLength{[},
+noAssert{]})}\label{buf.writeintlevalue-offset-bytelength-noassert}
+
+\subsubsection{buf.writeIntBE(value, offset, byteLength{[},
+noAssert{]})}\label{buf.writeintbevalue-offset-bytelength-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} \{Number\} Bytes to be written to buffer
+\item
+  \texttt{offset} \{Number\}
+  \texttt{0\ \textless{}=\ offset\ \textless{}=\ buf.length}
+\item
+  \texttt{byteLength} \{Number\}
+  \texttt{0\ \textless{}\ byteLength\ \textless{}=\ 6}
+\item
+  \texttt{noAssert} \{Boolean\} Default: false
+\item
+  Return: \{Number\}
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified \texttt{offset} and
+\texttt{byteLength}. Supports up to 48 bits of accuracy. For example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{b = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{6}\NormalTok{);}
+\OtherTok{b}\NormalTok{.}\FunctionTok{writeUIntBE}\NormalTok{(}\BaseNTok{0x1234567890ab}\NormalTok{, }\DecValTok{0}\NormalTok{, }\DecValTok{6}\NormalTok{);}
+\CommentTok{// <Buffer 12 34 56 78 90 ab>}
+\end{Highlighting}
+\end{Shaded}
+
+Set \texttt{noAssert} to \texttt{true} to skip validation of
+\texttt{value} and \texttt{offset}. Defaults to \texttt{false}.
+
+\subsubsection{buf.readUIntLE(offset, byteLength{[},
+noAssert{]})}\label{buf.readuintleoffset-bytelength-noassert}
+
+\subsubsection{buf.readUIntBE(offset, byteLength{[},
+noAssert{]})}\label{buf.readuintbeoffset-bytelength-noassert}
+
+\subsubsection{buf.readIntLE(offset, byteLength{[},
+noAssert{]})}\label{buf.readintleoffset-bytelength-noassert}
+
+\subsubsection{buf.readIntBE(offset, byteLength{[},
+noAssert{]})}\label{buf.readintbeoffset-bytelength-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} \{Number\}
+  \texttt{0\ \textless{}=\ offset\ \textless{}=\ buf.length}
+\item
+  \texttt{byteLength} \{Number\}
+  \texttt{0\ \textless{}\ byteLength\ \textless{}=\ 6}
+\item
+  \texttt{noAssert} \{Boolean\} Default: false
+\item
+  Return: \{Number\}
+\end{itemize}
+
+A generalized version of all numeric read methods. Supports up to 48
+bits of accuracy. For example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{b = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{6}\NormalTok{);}
+\OtherTok{b}\NormalTok{.}\FunctionTok{writeUint16LE}\NormalTok{(}\BaseNTok{0x90ab}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+\OtherTok{b}\NormalTok{.}\FunctionTok{writeUInt32LE}\NormalTok{(}\BaseNTok{0x12345678}\NormalTok{, }\DecValTok{2}\NormalTok{);}
+\OtherTok{b}\NormalTok{.}\FunctionTok{readUIntLE}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{6}\NormalTok{).}\FunctionTok{toString}\NormalTok{(}\DecValTok{16}\NormalTok{);  }\CommentTok{// Specify 6 bytes (48 bits)}
+\CommentTok{// output: '1234567890ab'}
+\end{Highlighting}
+\end{Shaded}
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+\subsubsection{buf.toString({[}encoding{]}{[}, start{]}{[},
+end{]})}\label{buf.tostringencoding-start-end}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{encoding} String, Optional, Default: `utf8'
+\item
+  \texttt{start} Number, Optional, Default: 0
+\item
+  \texttt{end} Number, Optional, Default: \texttt{buffer.length}
+\end{itemize}
+
+Decodes and returns a string from buffer data encoded using the
+specified character set encoding. If \texttt{encoding} is
+\texttt{undefined} or \texttt{null}, then \texttt{encoding} defaults to
+\texttt{\textquotesingle{}utf8\textquotesingle{}.\ The}start\texttt{and}end\texttt{parameters\ default\ to}0\texttt{and}buffer.length\texttt{when}undefined`.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{26}\NormalTok{);}
+\KeywordTok{for} \NormalTok{(}\KeywordTok{var} \NormalTok{i = }\DecValTok{0} \NormalTok{; i < }\DecValTok{26} \NormalTok{; i++) \{}
+  \NormalTok{buf[i] = i + }\DecValTok{97}\NormalTok{; }\CommentTok{// 97 is ASCII a}
+\NormalTok{\}}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'ascii'}\NormalTok{); }\CommentTok{// outputs: abcdefghijklmnopqrstuvwxyz}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'ascii'}\NormalTok{,}\DecValTok{0}\NormalTok{,}\DecValTok{5}\NormalTok{); }\CommentTok{// outputs: abcde}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'utf8'}\NormalTok{,}\DecValTok{0}\NormalTok{,}\DecValTok{5}\NormalTok{); }\CommentTok{// outputs: abcde}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\KeywordTok{undefined}\NormalTok{,}\DecValTok{0}\NormalTok{,}\DecValTok{5}\NormalTok{); }\CommentTok{// encoding defaults to 'utf8', outputs abcde}
+\end{Highlighting}
+\end{Shaded}
+
+See \texttt{buffer.write()} example, above.
+
+\subsubsection{buf.toJSON()}\label{buf.tojson}
+
+Returns a JSON-representation of the Buffer instance.
+\texttt{JSON.stringify} implicitly calls this function when stringifying
+a Buffer instance.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\StringTok{'test'}\NormalTok{);}
+\KeywordTok{var} \NormalTok{json = }\OtherTok{JSON}\NormalTok{.}\FunctionTok{stringify}\NormalTok{(buf);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(json);}
+\CommentTok{// '\{"type":"Buffer","data":[116,101,115,116]\}'}
+
+\KeywordTok{var} \NormalTok{copy = }\OtherTok{JSON}\NormalTok{.}\FunctionTok{parse}\NormalTok{(json, }\KeywordTok{function}\NormalTok{(key, value) \{}
+    \KeywordTok{return} \NormalTok{value && }\OtherTok{value}\NormalTok{.}\FunctionTok{type} \NormalTok{=== }\StringTok{'Buffer'}
+      \NormalTok{? }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\OtherTok{value}\NormalTok{.}\FunctionTok{data}\NormalTok{)}
+      \NormalTok{: value;}
+  \NormalTok{\});}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(copy);}
+\CommentTok{// <Buffer 74 65 73 74>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf{[}index{]}}\label{bufindex}
+
+Get and set the octet at \texttt{index}. The values refer to individual
+bytes, so the legal range is between \texttt{0x00} and \texttt{0xFF} hex
+or \texttt{0} and \texttt{255}.
+
+Example: copy an ASCII string into a buffer, one byte at a time:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{str = }\StringTok{"node.js"}\NormalTok{;}
+\NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\OtherTok{str}\NormalTok{.}\FunctionTok{length}\NormalTok{);}
+
+\KeywordTok{for} \NormalTok{(}\KeywordTok{var} \NormalTok{i = }\DecValTok{0}\NormalTok{; i < }\OtherTok{str}\NormalTok{.}\FunctionTok{length} \NormalTok{; i++) \{}
+  \NormalTok{buf[i] = }\OtherTok{str}\NormalTok{.}\FunctionTok{charCodeAt}\NormalTok{(i);}
+\NormalTok{\}}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\CommentTok{// node.js}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.equals(otherBuffer)}\label{buf.equalsotherbuffer}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{otherBuffer} \{Buffer\}
+\end{itemize}
+
+Returns a boolean of whether \texttt{this} and \texttt{otherBuffer} have
+the same bytes.
+
+\subsubsection{buf.compare(otherBuffer)}\label{buf.compareotherbuffer}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{otherBuffer} \{Buffer\}
+\end{itemize}
+
+Returns a number indicating whether \texttt{this} comes before or after
+or is the same as the \texttt{otherBuffer} in sort order.
+
+\subsubsection{buf.copy(targetBuffer{[}, targetStart{]}{[},
+sourceStart{]}{[},
+sourceEnd{]})}\label{buf.copytargetbuffer-targetstart-sourcestart-sourceend}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{targetBuffer} Buffer object - Buffer to copy into
+\item
+  \texttt{targetStart} Number, Optional, Default: 0
+\item
+  \texttt{sourceStart} Number, Optional, Default: 0
+\item
+  \texttt{sourceEnd} Number, Optional, Default: \texttt{buffer.length}
+\end{itemize}
+
+Copies data from a region of this buffer to a region in the target
+buffer even if the target memory region overlaps with the source. If
+\texttt{undefined} the \texttt{targetStart} and \texttt{sourceStart}
+parameters default to \texttt{0} while \texttt{sourceEnd} defaults to
+\texttt{buffer.length}.
+
+Example: build two Buffers, then copy \texttt{buf1} from byte 16 through
+byte 19 into \texttt{buf2}, starting at the 8th byte in \texttt{buf2}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buf1 = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{26}\NormalTok{);}
+\NormalTok{buf2 = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{26}\NormalTok{);}
+
+\KeywordTok{for} \NormalTok{(}\KeywordTok{var} \NormalTok{i = }\DecValTok{0} \NormalTok{; i < }\DecValTok{26} \NormalTok{; i++) \{}
+  \NormalTok{buf1[i] = i + }\DecValTok{97}\NormalTok{; }\CommentTok{// 97 is ASCII a}
+  \NormalTok{buf2[i] = }\DecValTok{33}\NormalTok{; }\CommentTok{// ASCII !}
+\NormalTok{\}}
+
+\OtherTok{buf1}\NormalTok{.}\FunctionTok{copy}\NormalTok{(buf2, }\DecValTok{8}\NormalTok{, }\DecValTok{16}\NormalTok{, }\DecValTok{20}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf2}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'ascii'}\NormalTok{, }\DecValTok{0}\NormalTok{, }\DecValTok{25}\NormalTok{));}
+
+\CommentTok{// !!!!!!!!qrst!!!!!!!!!!!!!}
+\end{Highlighting}
+\end{Shaded}
+
+Example: Build a single buffer, then copy data from one region to an
+overlapping region in the same buffer
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{26}\NormalTok{);}
+
+\KeywordTok{for} \NormalTok{(}\KeywordTok{var} \NormalTok{i = }\DecValTok{0} \NormalTok{; i < }\DecValTok{26} \NormalTok{; i++) \{}
+  \NormalTok{buf[i] = i + }\DecValTok{97}\NormalTok{; }\CommentTok{// 97 is ASCII a}
+\NormalTok{\}}
+
+\OtherTok{buf}\NormalTok{.}\FunctionTok{copy}\NormalTok{(buf, }\DecValTok{0}\NormalTok{, }\DecValTok{4}\NormalTok{, }\DecValTok{10}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{toString}\NormalTok{());}
+
+\CommentTok{// efghijghijklmnopqrstuvwxyz}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.slice({[}start{]}{[},
+end{]})}\label{buf.slicestart-end}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{start} Number, Optional, Default: 0
+\item
+  \texttt{end} Number, Optional, Default: \texttt{buffer.length}
+\end{itemize}
+
+Returns a new buffer which references the same memory as the old, but
+offset and cropped by the \texttt{start} (defaults to \texttt{0}) and
+\texttt{end} (defaults to \texttt{buffer.length}) indexes. Negative
+indexes start from the end of the buffer.
+
+\textbf{Modifying the new buffer slice will modify memory in the
+original buffer!}
+
+Example: build a Buffer with the ASCII alphabet, take a slice, then
+modify one byte from the original Buffer.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf1 = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{26}\NormalTok{);}
+
+\KeywordTok{for} \NormalTok{(}\KeywordTok{var} \NormalTok{i = }\DecValTok{0} \NormalTok{; i < }\DecValTok{26} \NormalTok{; i++) \{}
+  \NormalTok{buf1[i] = i + }\DecValTok{97}\NormalTok{; }\CommentTok{// 97 is ASCII a}
+\NormalTok{\}}
+
+\KeywordTok{var} \NormalTok{buf2 = }\OtherTok{buf1}\NormalTok{.}\FunctionTok{slice}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{3}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf2}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'ascii'}\NormalTok{, }\DecValTok{0}\NormalTok{, }\OtherTok{buf2}\NormalTok{.}\FunctionTok{length}\NormalTok{));}
+\NormalTok{buf1[}\DecValTok{0}\NormalTok{] = }\DecValTok{33}\NormalTok{;}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf2}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\StringTok{'ascii'}\NormalTok{, }\DecValTok{0}\NormalTok{, }\OtherTok{buf2}\NormalTok{.}\FunctionTok{length}\NormalTok{));}
+
+\CommentTok{// abc}
+\CommentTok{// !bc}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.readUInt8(offset{[},
+noAssert{]})}\label{buf.readuint8offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads an unsigned 8 bit integer from the buffer at the specified offset.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+
+\NormalTok{buf[}\DecValTok{0}\NormalTok{] = }\BaseNTok{0x3}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{1}\NormalTok{] = }\BaseNTok{0x4}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{2}\NormalTok{] = }\BaseNTok{0x23}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{3}\NormalTok{] = }\BaseNTok{0x42}\NormalTok{;}
+
+\KeywordTok{for} \NormalTok{(ii = }\DecValTok{0}\NormalTok{; ii < }\OtherTok{buf}\NormalTok{.}\FunctionTok{length}\NormalTok{; ii++) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt8}\NormalTok{(ii));}
+\NormalTok{\}}
+
+\CommentTok{// 0x3}
+\CommentTok{// 0x4}
+\CommentTok{// 0x23}
+\CommentTok{// 0x42}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.readUInt16LE(offset{[},
+noAssert{]})}\label{buf.readuint16leoffset-noassert}
+
+\subsubsection{buf.readUInt16BE(offset{[},
+noAssert{]})}\label{buf.readuint16beoffset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads an unsigned 16 bit integer from the buffer at the specified offset
+with specified endian format.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+
+\NormalTok{buf[}\DecValTok{0}\NormalTok{] = }\BaseNTok{0x3}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{1}\NormalTok{] = }\BaseNTok{0x4}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{2}\NormalTok{] = }\BaseNTok{0x23}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{3}\NormalTok{] = }\BaseNTok{0x42}\NormalTok{;}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt16BE}\NormalTok{(}\DecValTok{0}\NormalTok{));}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt16LE}\NormalTok{(}\DecValTok{0}\NormalTok{));}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt16BE}\NormalTok{(}\DecValTok{1}\NormalTok{));}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt16LE}\NormalTok{(}\DecValTok{1}\NormalTok{));}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt16BE}\NormalTok{(}\DecValTok{2}\NormalTok{));}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt16LE}\NormalTok{(}\DecValTok{2}\NormalTok{));}
+
+\CommentTok{// 0x0304}
+\CommentTok{// 0x0403}
+\CommentTok{// 0x0423}
+\CommentTok{// 0x2304}
+\CommentTok{// 0x2342}
+\CommentTok{// 0x4223}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.readUInt32LE(offset{[},
+noAssert{]})}\label{buf.readuint32leoffset-noassert}
+
+\subsubsection{buf.readUInt32BE(offset{[},
+noAssert{]})}\label{buf.readuint32beoffset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads an unsigned 32 bit integer from the buffer at the specified offset
+with specified endian format.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+
+\NormalTok{buf[}\DecValTok{0}\NormalTok{] = }\BaseNTok{0x3}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{1}\NormalTok{] = }\BaseNTok{0x4}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{2}\NormalTok{] = }\BaseNTok{0x23}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{3}\NormalTok{] = }\BaseNTok{0x42}\NormalTok{;}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt32BE}\NormalTok{(}\DecValTok{0}\NormalTok{));}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readUInt32LE}\NormalTok{(}\DecValTok{0}\NormalTok{));}
+
+\CommentTok{// 0x03042342}
+\CommentTok{// 0x42230403}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.readInt8(offset{[},
+noAssert{]})}\label{buf.readint8offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads a signed 8 bit integer from the buffer at the specified offset.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Works as \texttt{buffer.readUInt8}, except buffer contents are treated
+as two's complement signed values.
+
+\subsubsection{buf.readInt16LE(offset{[},
+noAssert{]})}\label{buf.readint16leoffset-noassert}
+
+\subsubsection{buf.readInt16BE(offset{[},
+noAssert{]})}\label{buf.readint16beoffset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads a signed 16 bit integer from the buffer at the specified offset
+with specified endian format.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Works as \texttt{buffer.readUInt16*}, except buffer contents are treated
+as two's complement signed values.
+
+\subsubsection{buf.readInt32LE(offset{[},
+noAssert{]})}\label{buf.readint32leoffset-noassert}
+
+\subsubsection{buf.readInt32BE(offset{[},
+noAssert{]})}\label{buf.readint32beoffset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads a signed 32 bit integer from the buffer at the specified offset
+with specified endian format.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Works as \texttt{buffer.readUInt32*}, except buffer contents are treated
+as two's complement signed values.
+
+\subsubsection{buf.readFloatLE(offset{[},
+noAssert{]})}\label{buf.readfloatleoffset-noassert}
+
+\subsubsection{buf.readFloatBE(offset{[},
+noAssert{]})}\label{buf.readfloatbeoffset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads a 32 bit float from the buffer at the specified offset with
+specified endian format.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+
+\NormalTok{buf[}\DecValTok{0}\NormalTok{] = }\BaseNTok{0x00}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{1}\NormalTok{] = }\BaseNTok{0x00}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{2}\NormalTok{] = }\BaseNTok{0x80}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{3}\NormalTok{] = }\BaseNTok{0x3f}\NormalTok{;}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readFloatLE}\NormalTok{(}\DecValTok{0}\NormalTok{));}
+
+\CommentTok{// 0x01}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.readDoubleLE(offset{[},
+noAssert{]})}\label{buf.readdoubleleoffset-noassert}
+
+\subsubsection{buf.readDoubleBE(offset{[},
+noAssert{]})}\label{buf.readdoublebeoffset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\item
+  Return: Number
+\end{itemize}
+
+Reads a 64 bit double from the buffer at the specified offset with
+specified endian format.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{offset}.
+This means that \texttt{offset} may be beyond the end of the buffer.
+Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{8}\NormalTok{);}
+
+\NormalTok{buf[}\DecValTok{0}\NormalTok{] = }\BaseNTok{0x55}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{1}\NormalTok{] = }\BaseNTok{0x55}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{2}\NormalTok{] = }\BaseNTok{0x55}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{3}\NormalTok{] = }\BaseNTok{0x55}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{4}\NormalTok{] = }\BaseNTok{0x55}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{5}\NormalTok{] = }\BaseNTok{0x55}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{6}\NormalTok{] = }\BaseNTok{0xd5}\NormalTok{;}
+\NormalTok{buf[}\DecValTok{7}\NormalTok{] = }\BaseNTok{0x3f}\NormalTok{;}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{buf}\NormalTok{.}\FunctionTok{readDoubleLE}\NormalTok{(}\DecValTok{0}\NormalTok{));}
+
+\CommentTok{// 0.3333333333333333}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.writeUInt8(value, offset{[},
+noAssert{]})}\label{buf.writeuint8value-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset. Note,
+\texttt{value} must be a valid unsigned 8 bit integer.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt8}\NormalTok{(}\BaseNTok{0x3}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt8}\NormalTok{(}\BaseNTok{0x4}\NormalTok{, }\DecValTok{1}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt8}\NormalTok{(}\BaseNTok{0x23}\NormalTok{, }\DecValTok{2}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt8}\NormalTok{(}\BaseNTok{0x42}\NormalTok{, }\DecValTok{3}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\CommentTok{// <Buffer 03 04 23 42>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.writeUInt16LE(value, offset{[},
+noAssert{]})}\label{buf.writeuint16levalue-offset-noassert}
+
+\subsubsection{buf.writeUInt16BE(value, offset{[},
+noAssert{]})}\label{buf.writeuint16bevalue-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset with
+specified endian format. Note, \texttt{value} must be a valid unsigned
+16 bit integer.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt16BE}\NormalTok{(}\BaseNTok{0xdead}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt16BE}\NormalTok{(}\BaseNTok{0xbeef}\NormalTok{, }\DecValTok{2}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt16LE}\NormalTok{(}\BaseNTok{0xdead}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt16LE}\NormalTok{(}\BaseNTok{0xbeef}\NormalTok{, }\DecValTok{2}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\CommentTok{// <Buffer de ad be ef>}
+\CommentTok{// <Buffer ad de ef be>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.writeUInt32LE(value, offset{[},
+noAssert{]})}\label{buf.writeuint32levalue-offset-noassert}
+
+\subsubsection{buf.writeUInt32BE(value, offset{[},
+noAssert{]})}\label{buf.writeuint32bevalue-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset with
+specified endian format. Note, \texttt{value} must be a valid unsigned
+32 bit integer.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt32BE}\NormalTok{(}\BaseNTok{0xfeedface}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeUInt32LE}\NormalTok{(}\BaseNTok{0xfeedface}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\CommentTok{// <Buffer fe ed fa ce>}
+\CommentTok{// <Buffer ce fa ed fe>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.writeInt8(value, offset{[},
+noAssert{]})}\label{buf.writeint8value-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset. Note,
+\texttt{value} must be a valid signed 8 bit integer.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Works as \texttt{buffer.writeUInt8}, except value is written out as a
+two's complement signed integer into \texttt{buffer}.
+
+\subsubsection{buf.writeInt16LE(value, offset{[},
+noAssert{]})}\label{buf.writeint16levalue-offset-noassert}
+
+\subsubsection{buf.writeInt16BE(value, offset{[},
+noAssert{]})}\label{buf.writeint16bevalue-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset with
+specified endian format. Note, \texttt{value} must be a valid signed 16
+bit integer.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Works as \texttt{buffer.writeUInt16*}, except value is written out as a
+two's complement signed integer into \texttt{buffer}.
+
+\subsubsection{buf.writeInt32LE(value, offset{[},
+noAssert{]})}\label{buf.writeint32levalue-offset-noassert}
+
+\subsubsection{buf.writeInt32BE(value, offset{[},
+noAssert{]})}\label{buf.writeint32bevalue-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset with
+specified endian format. Note, \texttt{value} must be a valid signed 32
+bit integer.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Works as \texttt{buffer.writeUInt32*}, except value is written out as a
+two's complement signed integer into \texttt{buffer}.
+
+\subsubsection{buf.writeFloatLE(value, offset{[},
+noAssert{]})}\label{buf.writefloatlevalue-offset-noassert}
+
+\subsubsection{buf.writeFloatBE(value, offset{[},
+noAssert{]})}\label{buf.writefloatbevalue-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset with
+specified endian format. Note, behavior is unspecified if \texttt{value}
+is not a 32 bit float.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{4}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeFloatBE}\NormalTok{(}\BaseNTok{0xcafebabe}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeFloatLE}\NormalTok{(}\BaseNTok{0xcafebabe}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\CommentTok{// <Buffer 4f 4a fe bb>}
+\CommentTok{// <Buffer bb fe 4a 4f>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.writeDoubleLE(value, offset{[},
+noAssert{]})}\label{buf.writedoublelevalue-offset-noassert}
+
+\subsubsection{buf.writeDoubleBE(value, offset{[},
+noAssert{]})}\label{buf.writedoublebevalue-offset-noassert}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value} Number
+\item
+  \texttt{offset} Number
+\item
+  \texttt{noAssert} Boolean, Optional, Default: false
+\end{itemize}
+
+Writes \texttt{value} to the buffer at the specified offset with
+specified endian format. Note, \texttt{value} must be a valid 64 bit
+double.
+
+Set \texttt{noAssert} to true to skip validation of \texttt{value} and
+\texttt{offset}. This means that \texttt{value} may be too large for the
+specific function and \texttt{offset} may be beyond the end of the
+buffer leading to the values being silently dropped. This should not be
+used unless you are certain of correctness. Defaults to \texttt{false}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{buf = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{8}\NormalTok{);}
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeDoubleBE}\NormalTok{(}\BaseNTok{0xdeadbeefcafebabe}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\OtherTok{buf}\NormalTok{.}\FunctionTok{writeDoubleLE}\NormalTok{(}\BaseNTok{0xdeadbeefcafebabe}\NormalTok{, }\DecValTok{0}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(buf);}
+
+\CommentTok{// <Buffer 43 eb d5 b7 dd f9 5f d7>}
+\CommentTok{// <Buffer d7 5f f9 dd b7 d5 eb 43>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{buf.fill(value{[}, offset{]}{[},
+end{]})}\label{buf.fillvalue-offset-end}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{value}
+\item
+  \texttt{offset} Number, Optional
+\item
+  \texttt{end} Number, Optional
+\end{itemize}
+
+Fills the buffer with the specified value. If the \texttt{offset}
+(defaults to \texttt{0}) and \texttt{end} (defaults to
+\texttt{buffer.length}) are not given it will fill the entire buffer.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{b = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{(}\DecValTok{50}\NormalTok{);}
+\OtherTok{b}\NormalTok{.}\FunctionTok{fill}\NormalTok{(}\StringTok{"h"}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{buffer.INSPECT\_MAX\_BYTES}\label{buffer.inspectux5fmaxux5fbytes}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Number, Default: 50
+\end{itemize}
+
+How many bytes will be returned when \texttt{buffer.inspect()} is
+called. This can be overridden by user modules.
+
+Note that this is a property on the buffer module returned by
+\texttt{require(\textquotesingle{}buffer\textquotesingle{})}, not on the
+Buffer global, or a buffer instance.
+
+\subsection{Class: SlowBuffer}\label{class-slowbuffer}
+
+Returns an un-pooled \texttt{Buffer}.
+
+In order to avoid the garbage collection overhead of creating many
+individually allocated Buffers, by default allocations under 4KB are
+sliced from a single larger allocated object. This approach improves
+both performance and memory usage since v8 does not need to track and
+cleanup as many \texttt{Persistent} objects.
+
+In the case where a developer may need to retain a small chunk of memory
+from a pool for an indeterminate amount of time it may be appropriate to
+create an un-pooled Buffer instance using SlowBuffer and copy out the
+relevant bits.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{// need to keep around a few small chunks of memory}
+\KeywordTok{var} \NormalTok{store = [];}
+
+\OtherTok{socket}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'readable'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \KeywordTok{var} \NormalTok{data = }\OtherTok{socket}\NormalTok{.}\FunctionTok{read}\NormalTok{();}
+  \CommentTok{// allocate for retained data}
+  \KeywordTok{var} \NormalTok{sb = }\KeywordTok{new} \FunctionTok{SlowBuffer}\NormalTok{(}\DecValTok{10}\NormalTok{);}
+  \CommentTok{// copy the data into the new allocation}
+  \OtherTok{data}\NormalTok{.}\FunctionTok{copy}\NormalTok{(sb, }\DecValTok{0}\NormalTok{, }\DecValTok{0}\NormalTok{, }\DecValTok{10}\NormalTok{);}
+  \OtherTok{store}\NormalTok{.}\FunctionTok{push}\NormalTok{(sb);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Though this should used sparingly and only be a last resort \emph{after}
+a developer has actively observed undue memory retention in their
+applications.

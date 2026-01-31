@@ -1,0 +1,974 @@
+\section{process}\label{process}
+
+The \texttt{process} object is a global object and can be accessed from
+anywhere. It is an instance of
+\href{events.html\#events_class_events_eventemitter}{EventEmitter}.
+
+\subsection{Exit Codes}\label{exit-codes}
+
+Node will normally exit with a \texttt{0} status code when no more async
+operations are pending. The following status codes are used in other
+cases:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{1} \textbf{Uncaught Fatal Exception} - There was an uncaught
+  exception, and it was not handled by a domain or an
+  \texttt{uncaughtException} event handler.
+\item
+  \texttt{2} - Unused (reserved by Bash for builtin misuse)
+\item
+  \texttt{3} \textbf{Internal JavaScript Parse Error} - The JavaScript
+  source code internal in Node's bootstrapping process caused a parse
+  error. This is extremely rare, and generally can only happen during
+  development of Node itself.
+\item
+  \texttt{4} \textbf{Internal JavaScript Evaluation Failure} - The
+  JavaScript source code internal in Node's bootstrapping process failed
+  to return a function value when evaluated. This is extremely rare, and
+  generally can only happen during development of Node itself.
+\item
+  \texttt{5} \textbf{Fatal Error} - There was a fatal unrecoverable
+  error in V8. Typically a message will be printed to stderr with the
+  prefix \texttt{FATAL\ \ \ ERROR}.
+\item
+  \texttt{6} \textbf{Non-function Internal Exception Handler} - There
+  was an uncaught exception, but the internal fatal exception handler
+  function was somehow set to a non-function, and could not be called.
+\item
+  \texttt{7} \textbf{Internal Exception Handler Run-Time Failure} -
+  There was an uncaught exception, and the internal fatal exception
+  handler function itself threw an error while attempting to handle it.
+  This can happen, for example, if a
+  \texttt{process.on(\textquotesingle{}uncaughtException\textquotesingle{})}
+  or \texttt{domain.on(\textquotesingle{}error\textquotesingle{})}
+  handler throws an error.
+\item
+  \texttt{8} - Unused. In previous versions of Node, exit code 8
+  sometimes indicated an uncaught exception.
+\item
+  \texttt{9} - \textbf{Invalid Argument} - Either an unknown option was
+  specified, or an option requiring a value was provided without a
+  value.
+\item
+  \texttt{10} \textbf{Internal JavaScript Run-Time Failure} - The
+  JavaScript source code internal in Node's bootstrapping process threw
+  an error when the bootstrapping function was called. This is extremely
+  rare, and generally can only happen during development of Node itself.
+\item
+  \texttt{12} \textbf{Invalid Debug Argument} - The \texttt{-\/-debug}
+  and/or \texttt{-\/-debug-brk} options were set, but an invalid port
+  number was chosen.
+\item
+  \texttt{\textgreater{}128} \textbf{Signal Exits} - If Node receives a
+  fatal signal such as \texttt{SIGKILL} or \texttt{SIGHUP}, then its
+  exit code will be \texttt{128} plus the value of the signal code. This
+  is a standard Unix practice, since exit codes are defined to be 7-bit
+  integers, and signal exits set the high-order bit, and then contain
+  the value of the signal code.
+\end{itemize}
+
+\subsection{\texorpdfstring{Event:
+`exit'}{Event: exit}}\label{event-exit}
+
+Emitted when the process is about to exit. There is no way to prevent
+the exiting of the event loop at this point, and once all \texttt{exit}
+listeners have finished running the process will exit. Therefore you
+\textbf{must} only perform \textbf{synchronous} operations in this
+handler. This is a good hook to perform checks on the module's state
+(like for unit tests). The callback takes one argument, the code the
+process is exiting with.
+
+Example of listening for \texttt{exit}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'exit'}\NormalTok{, }\KeywordTok{function}\NormalTok{(code) \{}
+  \CommentTok{// do *NOT* do this}
+  \FunctionTok{setTimeout}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'This will not run'}\NormalTok{);}
+  \NormalTok{\}, }\DecValTok{0}\NormalTok{);}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'About to exit with code:'}\NormalTok{, code);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{\texorpdfstring{Event:
+`beforeExit'}{Event: beforeExit}}\label{event-beforeexit}
+
+This event is emitted when node empties it's event loop and has nothing
+else to schedule. Normally, node exits when there is no work scheduled,
+but a listener for `beforeExit' can make asynchronous calls, and cause
+node to continue.
+
+`beforeExit' is not emitted for conditions causing explicit termination,
+such as \texttt{process.exit()} or uncaught exceptions, and should not
+be used as an alternative to the `exit' event unless the intention is to
+schedule more work.
+
+\subsection{\texorpdfstring{Event:
+`uncaughtException'}{Event: uncaughtException}}\label{event-uncaughtexception}
+
+Emitted when an exception bubbles all the way back to the event loop. If
+a listener is added for this exception, the default action (which is to
+print a stack trace and exit) will not occur.
+
+Example of listening for \texttt{uncaughtException}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'uncaughtException'}\NormalTok{, }\KeywordTok{function}\NormalTok{(err) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Caught exception: '} \NormalTok{+ err);}
+\NormalTok{\});}
+
+\FunctionTok{setTimeout}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'This will still run.'}\NormalTok{);}
+\NormalTok{\}, }\DecValTok{500}\NormalTok{);}
+
+\CommentTok{// Intentionally cause an exception, but don't catch it.}
+\FunctionTok{nonexistentFunc}\NormalTok{();}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'This will not run.'}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+Note that \texttt{uncaughtException} is a very crude mechanism for
+exception handling.
+
+Don't use it, use \href{domain.html}{domains} instead. If you do use it,
+restart your application after every unhandled exception!
+
+Do \emph{not} use it as the node.js equivalent of
+\texttt{On\ Error\ Resume\ Next}. An unhandled exception means your
+application - and by extension node.js itself - is in an undefined
+state. Blindly resuming means \emph{anything} could happen.
+
+Think of resuming as pulling the power cord when you are upgrading your
+system. Nine out of ten times nothing happens - but the 10th time, your
+system is bust.
+
+You have been warned.
+
+\subsection{Signal Events}\label{signal-events}
+
+Emitted when the processes receives a signal. See sigaction(2) for a
+list of standard POSIX signal names such as SIGINT, SIGHUP, etc.
+
+Example of listening for \texttt{SIGINT}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{// Start reading from stdin so we don't exit.}
+\OtherTok{process}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{resume}\NormalTok{();}
+
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'SIGINT'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Got SIGINT.  Press Control-D to exit.'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+An easy way to send the \texttt{SIGINT} signal is with
+\texttt{Control-C} in most terminal programs.
+
+Note:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{SIGUSR1} is reserved by node.js to start the debugger. It's
+  possible to install a listener but that won't stop the debugger from
+  starting.
+\item
+  \texttt{SIGTERM} and \texttt{SIGINT} have default handlers on
+  non-Windows platforms that resets the terminal mode before exiting
+  with code \texttt{128\ +\ signal\ number}. If one of these signals has
+  a listener installed, its default behaviour will be removed (node will
+  no longer exit).
+\item
+  \texttt{SIGPIPE} is ignored by default, it can have a listener
+  installed.
+\item
+  \texttt{SIGHUP} is generated on Windows when the console window is
+  closed, and on other platforms under various similar conditions, see
+  signal(7). It can have a listener installed, however node will be
+  unconditionally terminated by Windows about 10 seconds later. On
+  non-Windows platforms, the default behaviour of \texttt{SIGHUP} is to
+  terminate node, but once a listener has been installed its default
+  behaviour will be removed.
+\item
+  \texttt{SIGTERM} is not supported on Windows, it can be listened on.
+\item
+  \texttt{SIGINT} from the terminal is supported on all platforms, and
+  can usually be generated with \texttt{CTRL+C} (though this may be
+  configurable). It is not generated when terminal raw mode is enabled.
+\item
+  \texttt{SIGBREAK} is delivered on Windows when \texttt{CTRL+BREAK} is
+  pressed, on non-Windows platforms it can be listened on, but there is
+  no way to send or generate it.
+\item
+  \texttt{SIGWINCH} is delivered when the console has been resized. On
+  Windows, this will only happen on write to the console when the cursor
+  is being moved, or when a readable tty is used in raw mode.
+\item
+  \texttt{SIGKILL} cannot have a listener installed, it will
+  unconditionally terminate node on all platforms.
+\item
+  \texttt{SIGSTOP} cannot have a listener installed.
+\end{itemize}
+
+Note that Windows does not support sending Signals, but node offers some
+emulation with \texttt{process.kill()}, and
+\texttt{child\_process.kill()}: - Sending signal \texttt{0} can be used
+to search for the existence of a process - Sending \texttt{SIGINT},
+\texttt{SIGTERM}, and \texttt{SIGKILL} cause the unconditional exit of
+the target process.
+
+\subsection{process.stdout}\label{process.stdout}
+
+A \texttt{Writable\ Stream} to \texttt{stdout} (on fd \texttt{1}).
+
+Example: the definition of \texttt{console.log}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log} \NormalTok{= }\KeywordTok{function}\NormalTok{(d) \{}
+  \OtherTok{process}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{write}\NormalTok{(d + }\StringTok{'}\CharTok{\textbackslash{}n}\StringTok{'}\NormalTok{);}
+\NormalTok{\};}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{process.stderr} and \texttt{process.stdout} are unlike other
+streams in Node in that they cannot be closed (\texttt{end()} will
+throw), they never emit the \texttt{finish} event and that writes are
+usually blocking.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  They are blocking in the case that they refer to regular files or TTY
+  file descriptors.
+\item
+  In the case they refer to pipes:
+\item
+  They are blocking in Linux/Unix.
+\item
+  They are non-blocking like other streams in Windows.
+\end{itemize}
+
+To check if Node is being run in a TTY context, read the \texttt{isTTY}
+property on \texttt{process.stderr}, \texttt{process.stdout}, or
+\texttt{process.stdin}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{$ node -p }\StringTok{"Boolean(process.stdin.isTTY)"}
+\KeywordTok{true}
+\NormalTok{$ echo }\StringTok{"foo"} \NormalTok{| node -p }\StringTok{"Boolean(process.stdin.isTTY)"}
+\KeywordTok{false}
+
+\NormalTok{$ node -p }\StringTok{"Boolean(process.stdout.isTTY)"}
+\KeywordTok{true}
+\NormalTok{$ node -p }\StringTok{"Boolean(process.stdout.isTTY)"} \NormalTok{| cat}
+\KeywordTok{false}
+\end{Highlighting}
+\end{Shaded}
+
+See \href{tty.html\#tty_tty}{the tty docs} for more information.
+
+\subsection{process.stderr}\label{process.stderr}
+
+A writable stream to stderr (on fd \texttt{2}).
+
+\texttt{process.stderr} and \texttt{process.stdout} are unlike other
+streams in Node in that they cannot be closed (\texttt{end()} will
+throw), they never emit the \texttt{finish} event and that writes are
+usually blocking.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  They are blocking in the case that they refer to regular files or TTY
+  file descriptors.
+\item
+  In the case they refer to pipes:
+\item
+  They are blocking in Linux/Unix.
+\item
+  They are non-blocking like other streams in Windows.
+\end{itemize}
+
+\subsection{process.stdin}\label{process.stdin}
+
+A \texttt{Readable\ Stream} for stdin (on fd \texttt{0}).
+
+Example of opening standard input and listening for both events:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{setEncoding}\NormalTok{(}\StringTok{'utf8'}\NormalTok{);}
+
+\OtherTok{process}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'readable'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \KeywordTok{var} \NormalTok{chunk = }\OtherTok{process}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{read}\NormalTok{();}
+  \KeywordTok{if} \NormalTok{(chunk !== }\KeywordTok{null}\NormalTok{) \{}
+    \OtherTok{process}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{'data: '} \NormalTok{+ chunk);}
+  \NormalTok{\}}
+\NormalTok{\});}
+
+\OtherTok{process}\NormalTok{.}\OtherTok{stdin}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'end'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{process}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{write}\NormalTok{(}\StringTok{'end'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+As a Stream, \texttt{process.stdin} can also be used in ``old'' mode
+that is compatible with scripts written for node prior v0.10. For more
+information see
+\href{stream.html\#stream_compatibility_with_older_node_versions}{Stream
+compatibility}.
+
+In ``old'' Streams mode the stdin stream is paused by default, so one
+must call \texttt{process.stdin.resume()} to read from it. Note also
+that calling \texttt{process.stdin.resume()} itself would switch stream
+to ``old'' mode.
+
+If you are starting a new project you should prefer a more recent
+``new'' Streams mode over ``old'' one.
+
+\subsection{process.argv}\label{process.argv}
+
+An array containing the command line arguments. The first element will
+be `node', the second element will be the name of the JavaScript file.
+The next elements will be any additional command line arguments.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{// print process.argv}
+\OtherTok{process}\NormalTok{.}\OtherTok{argv}\NormalTok{.}\FunctionTok{forEach}\NormalTok{(}\KeywordTok{function}\NormalTok{(val, index, array) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(index + }\StringTok{': '} \NormalTok{+ val);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+This will generate:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{$ node process}\FloatTok{-2.}\NormalTok{js one two=three four}
+\DecValTok{0}\NormalTok{: node}
+\DecValTok{1}\NormalTok{: }\OtherTok{/Users/mjr/work/node/process-2.js}
+\OtherTok{2: one}
+\OtherTok{3: two=three}
+\OtherTok{4: four}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.execPath}\label{process.execpath}
+
+This is the absolute pathname of the executable that started the
+process.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{/usr/local/bin/node}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.execArgv}\label{process.execargv}
+
+This is the set of node-specific command line options from the
+executable that started the process. These options do not show up in
+\texttt{process.argv}, and do not include the node executable, the name
+of the script, or any options following the script name. These options
+are useful in order to spawn child processes with the same execution
+environment as the parent.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{$ node --harmony }\OtherTok{script}\NormalTok{.}\FunctionTok{js} \NormalTok{--version}
+\end{Highlighting}
+\end{Shaded}
+
+results in process.execArgv:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{[}\StringTok{'--harmony'}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+and process.argv:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{[}\StringTok{'/usr/local/bin/node'}\NormalTok{, }\StringTok{'script.js'}\NormalTok{, }\StringTok{'--version'}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.abort()}\label{process.abort}
+
+This causes node to emit an abort. This will cause node to exit and
+generate a core file.
+
+\subsection{process.chdir(directory)}\label{process.chdirdirectory}
+
+Changes the current working directory of the process or throws an
+exception if that fails.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Starting directory: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{cwd}\NormalTok{());}
+\KeywordTok{try} \NormalTok{\{}
+  \OtherTok{process}\NormalTok{.}\FunctionTok{chdir}\NormalTok{(}\StringTok{'/tmp'}\NormalTok{);}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'New directory: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{cwd}\NormalTok{());}
+\NormalTok{\}}
+\KeywordTok{catch} \NormalTok{(err) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'chdir: '} \NormalTok{+ err);}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.cwd()}\label{process.cwd}
+
+Returns the current working directory of the process.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Current directory: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{cwd}\NormalTok{());}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.env}\label{process.env}
+
+An object containing the user environment. See environ(7).
+
+An example of this object looks like:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{TERM}\NormalTok{: }\StringTok{'xterm-256color'}\NormalTok{,}
+  \DataTypeTok{SHELL}\NormalTok{: }\StringTok{'/usr/local/bin/bash'}\NormalTok{,}
+  \DataTypeTok{USER}\NormalTok{: }\StringTok{'maciej'}\NormalTok{,}
+  \DataTypeTok{PATH}\NormalTok{: }\StringTok{'~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'}\NormalTok{,}
+  \DataTypeTok{PWD}\NormalTok{: }\StringTok{'/Users/maciej'}\NormalTok{,}
+  \DataTypeTok{EDITOR}\NormalTok{: }\StringTok{'vim'}\NormalTok{,}
+  \DataTypeTok{SHLVL}\NormalTok{: }\StringTok{'1'}\NormalTok{,}
+  \DataTypeTok{HOME}\NormalTok{: }\StringTok{'/Users/maciej'}\NormalTok{,}
+  \DataTypeTok{LOGNAME}\NormalTok{: }\StringTok{'maciej'}\NormalTok{,}
+  \DataTypeTok{_}\NormalTok{: }\StringTok{'/usr/local/bin/node'} \NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+You can write to this object, but changes won't be reflected outside of
+your process. That means that the following won't work:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{node -e }\StringTok{'process.env.foo = "bar"'} \NormalTok{&& echo $foo}
+\end{Highlighting}
+\end{Shaded}
+
+But this will:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\OtherTok{env}\NormalTok{.}\FunctionTok{foo} \NormalTok{= }\StringTok{'bar'}\NormalTok{;}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\OtherTok{env}\NormalTok{.}\FunctionTok{foo}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.exit({[}code{]})}\label{process.exitcode}
+
+Ends the process with the specified \texttt{code}. If omitted, exit uses
+the `success' code \texttt{0}.
+
+To exit with a `failure' code:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{exit}\NormalTok{(}\DecValTok{1}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+The shell that executed node should see the exit code as 1.
+
+\subsection{process.exitCode}\label{process.exitcode-1}
+
+A number which will be the process exit code, when the process either
+exits gracefully, or is exited via \texttt{process.exit()} without
+specifying a code.
+
+Specifying a code to \texttt{process.exit(code)} will override any
+previous setting of \texttt{process.exitCode}.
+
+\subsection{process.getgid()}\label{process.getgid}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Gets the group identity of the process. (See getgid(2).) This is the
+numerical group id, not the group name.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{if} \NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getgid}\NormalTok{) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Current gid: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{getgid}\NormalTok{());}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.setgid(id)}\label{process.setgidid}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Sets the group identity of the process. (See setgid(2).) This accepts
+either a numerical ID or a groupname string. If a groupname is
+specified, this method blocks while resolving it to a numerical ID.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{if} \NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getgid} \NormalTok{&& }\OtherTok{process}\NormalTok{.}\FunctionTok{setgid}\NormalTok{) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Current gid: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{getgid}\NormalTok{());}
+  \KeywordTok{try} \NormalTok{\{}
+    \OtherTok{process}\NormalTok{.}\FunctionTok{setgid}\NormalTok{(}\DecValTok{501}\NormalTok{);}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'New gid: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{getgid}\NormalTok{());}
+  \NormalTok{\}}
+  \KeywordTok{catch} \NormalTok{(err) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Failed to set gid: '} \NormalTok{+ err);}
+  \NormalTok{\}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.getuid()}\label{process.getuid}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Gets the user identity of the process. (See getuid(2).) This is the
+numerical userid, not the username.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{if} \NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getuid}\NormalTok{) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Current uid: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{getuid}\NormalTok{());}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.setuid(id)}\label{process.setuidid}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Sets the user identity of the process. (See setuid(2).) This accepts
+either a numerical ID or a username string. If a username is specified,
+this method blocks while resolving it to a numerical ID.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{if} \NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getuid} \NormalTok{&& }\OtherTok{process}\NormalTok{.}\FunctionTok{setuid}\NormalTok{) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Current uid: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{getuid}\NormalTok{());}
+  \KeywordTok{try} \NormalTok{\{}
+    \OtherTok{process}\NormalTok{.}\FunctionTok{setuid}\NormalTok{(}\DecValTok{501}\NormalTok{);}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'New uid: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{getuid}\NormalTok{());}
+  \NormalTok{\}}
+  \KeywordTok{catch} \NormalTok{(err) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Failed to set uid: '} \NormalTok{+ err);}
+  \NormalTok{\}}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.getgroups()}\label{process.getgroups}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Returns an array with the supplementary group IDs. POSIX leaves it
+unspecified if the effective group ID is included but node.js ensures it
+always is.
+
+\subsection{process.setgroups(groups)}\label{process.setgroupsgroups}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Sets the supplementary group IDs. This is a privileged operation,
+meaning you need to be root or have the CAP\_SETGID capability.
+
+The list can contain group IDs, group names or both.
+
+\subsection{process.initgroups(user,
+extra\_group)}\label{process.initgroupsuser-extraux5fgroup}
+
+Note: this function is only available on POSIX platforms (i.e.~not
+Windows, Android)
+
+Reads /etc/group and initializes the group access list, using all groups
+of which the user is a member. This is a privileged operation, meaning
+you need to be root or have the CAP\_SETGID capability.
+
+\texttt{user} is a user name or user ID. \texttt{extra\_group} is a
+group name or group ID.
+
+Some care needs to be taken when dropping privileges. Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getgroups}\NormalTok{());         }\CommentTok{// [ 0 ]}
+\OtherTok{process}\NormalTok{.}\FunctionTok{initgroups}\NormalTok{(}\StringTok{'bnoordhuis'}\NormalTok{, }\DecValTok{1000}\NormalTok{);   }\CommentTok{// switch user}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getgroups}\NormalTok{());         }\CommentTok{// [ 27, 30, 46, 1000, 0 ]}
+\OtherTok{process}\NormalTok{.}\FunctionTok{setgid}\NormalTok{(}\DecValTok{1000}\NormalTok{);                     }\CommentTok{// drop root gid}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{getgroups}\NormalTok{());         }\CommentTok{// [ 27, 30, 46, 1000 ]}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.version}\label{process.version}
+
+A compiled-in property that exposes \texttt{NODE\_VERSION}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Version: '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{version}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.versions}\label{process.versions}
+
+A property exposing version strings of node and its dependencies.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{versions}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+Will print something like:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{http_parser}\NormalTok{: }\StringTok{'1.0'}\NormalTok{,}
+  \DataTypeTok{node}\NormalTok{: }\StringTok{'0.10.4'}\NormalTok{,}
+  \DataTypeTok{v8}\NormalTok{: }\StringTok{'3.14.5.8'}\NormalTok{,}
+  \DataTypeTok{ares}\NormalTok{: }\StringTok{'1.9.0-DEV'}\NormalTok{,}
+  \DataTypeTok{uv}\NormalTok{: }\StringTok{'0.10.3'}\NormalTok{,}
+  \DataTypeTok{zlib}\NormalTok{: }\StringTok{'1.2.3'}\NormalTok{,}
+  \DataTypeTok{modules}\NormalTok{: }\StringTok{'11'}\NormalTok{,}
+  \DataTypeTok{openssl}\NormalTok{: }\StringTok{'1.0.1e'} \NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.config}\label{process.config}
+
+An Object containing the JavaScript representation of the configure
+options that were used to compile the current node executable. This is
+the same as the ``config.gypi'' file that was produced when running the
+\texttt{./configure} script.
+
+An example of the possible output looks like:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{target_defaults}\NormalTok{:}
+   \NormalTok{\{ }\DataTypeTok{cflags}\NormalTok{: [],}
+     \DataTypeTok{default_configuration}\NormalTok{: }\StringTok{'Release'}\NormalTok{,}
+     \DataTypeTok{defines}\NormalTok{: [],}
+     \DataTypeTok{include_dirs}\NormalTok{: [],}
+     \DataTypeTok{libraries}\NormalTok{: [] \},}
+  \DataTypeTok{variables}\NormalTok{:}
+   \NormalTok{\{ }\DataTypeTok{host_arch}\NormalTok{: }\StringTok{'x64'}\NormalTok{,}
+     \DataTypeTok{node_install_npm}\NormalTok{: }\StringTok{'true'}\NormalTok{,}
+     \DataTypeTok{node_prefix}\NormalTok{: }\StringTok{''}\NormalTok{,}
+     \DataTypeTok{node_shared_cares}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{node_shared_http_parser}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{node_shared_libuv}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{node_shared_v8}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{node_shared_zlib}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{node_use_dtrace}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{node_use_openssl}\NormalTok{: }\StringTok{'true'}\NormalTok{,}
+     \DataTypeTok{node_shared_openssl}\NormalTok{: }\StringTok{'false'}\NormalTok{,}
+     \DataTypeTok{strict_aliasing}\NormalTok{: }\StringTok{'true'}\NormalTok{,}
+     \DataTypeTok{target_arch}\NormalTok{: }\StringTok{'x64'}\NormalTok{,}
+     \DataTypeTok{v8_use_snapshot}\NormalTok{: }\StringTok{'true'} \NormalTok{\} \}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.kill(pid{[},
+signal{]})}\label{process.killpid-signal}
+
+Send a signal to a process. \texttt{pid} is the process id and
+\texttt{signal} is the string describing the signal to send. Signal
+names are strings like `SIGINT' or `SIGHUP'. If omitted, the signal will
+be `SIGTERM'. See \hyperref[processux5fsignalux5fevents]{Signal Events}
+and kill(2) for more information.
+
+Will throw an error if target does not exist, and as a special case, a
+signal of \texttt{0} can be used to test for the existence of a process.
+
+Note that just because the name of this function is
+\texttt{process.kill}, it is really just a signal sender, like the
+\texttt{kill} system call. The signal sent may do something other than
+kill the target process.
+
+Example of sending a signal to yourself:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{process}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'SIGHUP'}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Got SIGHUP signal.'}\NormalTok{);}
+\NormalTok{\});}
+
+\FunctionTok{setTimeout}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Exiting.'}\NormalTok{);}
+  \OtherTok{process}\NormalTok{.}\FunctionTok{exit}\NormalTok{(}\DecValTok{0}\NormalTok{);}
+\NormalTok{\}, }\DecValTok{100}\NormalTok{);}
+
+\OtherTok{process}\NormalTok{.}\FunctionTok{kill}\NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{pid}\NormalTok{, }\StringTok{'SIGHUP'}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+Note: When SIGUSR1 is received by Node.js it starts the debugger, see
+\hyperref[processux5fsignalux5fevents]{Signal Events}.
+
+\subsection{process.pid}\label{process.pid}
+
+The PID of the process.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'This process is pid '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{pid}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.title}\label{process.title}
+
+Getter/setter to set what is displayed in `ps'.
+
+When used as a setter, the maximum length is platform-specific and
+probably short.
+
+On Linux and OS X, it's limited to the size of the binary name plus the
+length of the command line arguments because it overwrites the argv
+memory.
+
+v0.8 allowed for longer process title strings by also overwriting the
+environ memory but that was potentially insecure/confusing in some
+(rather obscure) cases.
+
+\subsection{process.arch}\label{process.arch}
+
+What processor architecture you're running on:
+\texttt{\textquotesingle{}arm\textquotesingle{}},
+\texttt{\textquotesingle{}ia32\textquotesingle{}}, or
+\texttt{\textquotesingle{}x64\textquotesingle{}}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'This processor architecture is '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{arch}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.platform}\label{process.platform}
+
+What platform you're running on:
+\texttt{\textquotesingle{}darwin\textquotesingle{}},
+\texttt{\textquotesingle{}freebsd\textquotesingle{}},
+\texttt{\textquotesingle{}linux\textquotesingle{}},
+\texttt{\textquotesingle{}sunos\textquotesingle{}} or
+\texttt{\textquotesingle{}win32\textquotesingle{}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'This platform is '} \NormalTok{+ }\OtherTok{process}\NormalTok{.}\FunctionTok{platform}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.memoryUsage()}\label{process.memoryusage}
+
+Returns an object describing the memory usage of the Node process
+measured in bytes.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{util = }\FunctionTok{require}\NormalTok{(}\StringTok{'util'}\NormalTok{);}
+
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{util}\NormalTok{.}\FunctionTok{inspect}\NormalTok{(}\OtherTok{process}\NormalTok{.}\FunctionTok{memoryUsage}\NormalTok{()));}
+\end{Highlighting}
+\end{Shaded}
+
+This will generate:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{rss}\NormalTok{: }\DecValTok{4935680}\NormalTok{,}
+  \DataTypeTok{heapTotal}\NormalTok{: }\DecValTok{1826816}\NormalTok{,}
+  \DataTypeTok{heapUsed}\NormalTok{: }\DecValTok{650472} \NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{heapTotal} and \texttt{heapUsed} refer to V8's memory usage.
+
+\subsection{process.nextTick(callback)}\label{process.nexttickcallback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{callback} \{Function\}
+\end{itemize}
+
+Once the current event loop turn runs to completion, call the callback
+function.
+
+This is \emph{not} a simple alias to \texttt{setTimeout(fn,\ 0)}, it's
+much more efficient. It runs before any additional I/O events (including
+timers) fire in subsequent ticks of the event loop.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'start'}\NormalTok{);}
+\OtherTok{process}\NormalTok{.}\FunctionTok{nextTick}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'nextTick callback'}\NormalTok{);}
+\NormalTok{\});}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'scheduled'}\NormalTok{);}
+\CommentTok{// Output:}
+\CommentTok{// start}
+\CommentTok{// scheduled}
+\CommentTok{// nextTick callback}
+\end{Highlighting}
+\end{Shaded}
+
+This is important in developing APIs where you want to give the user the
+chance to assign event handlers after an object has been constructed,
+but before any I/O has occurred.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{MyThing}\NormalTok{(options) \{}
+  \KeywordTok{this}\NormalTok{.}\FunctionTok{setupOptions}\NormalTok{(options);}
+
+  \OtherTok{process}\NormalTok{.}\FunctionTok{nextTick}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+    \KeywordTok{this}\NormalTok{.}\FunctionTok{startDoingStuff}\NormalTok{();}
+  \NormalTok{\}.}\FunctionTok{bind}\NormalTok{(}\KeywordTok{this}\NormalTok{));}
+\NormalTok{\}}
+
+\KeywordTok{var} \NormalTok{thing = }\KeywordTok{new} \FunctionTok{MyThing}\NormalTok{();}
+\OtherTok{thing}\NormalTok{.}\FunctionTok{getReadyForStuff}\NormalTok{();}
+
+\CommentTok{// thing.startDoingStuff() gets called now, not before.}
+\end{Highlighting}
+\end{Shaded}
+
+It is very important for APIs to be either 100\% synchronous or 100\%
+asynchronous. Consider this example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{// WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!}
+\KeywordTok{function} \FunctionTok{maybeSync}\NormalTok{(arg, cb) \{}
+  \KeywordTok{if} \NormalTok{(arg) \{}
+    \FunctionTok{cb}\NormalTok{();}
+    \KeywordTok{return}\NormalTok{;}
+  \NormalTok{\}}
+
+  \OtherTok{fs}\NormalTok{.}\FunctionTok{stat}\NormalTok{(}\StringTok{'file'}\NormalTok{, cb);}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+This API is hazardous. If you do this:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{maybeSync}\NormalTok{(}\KeywordTok{true}\NormalTok{, }\KeywordTok{function}\NormalTok{() \{}
+  \FunctionTok{foo}\NormalTok{();}
+\NormalTok{\});}
+\FunctionTok{bar}\NormalTok{();}
+\end{Highlighting}
+\end{Shaded}
+
+then it's not clear whether \texttt{foo()} or \texttt{bar()} will be
+called first.
+
+This approach is much better:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{definitelyAsync}\NormalTok{(arg, cb) \{}
+  \KeywordTok{if} \NormalTok{(arg) \{}
+    \OtherTok{process}\NormalTok{.}\FunctionTok{nextTick}\NormalTok{(cb);}
+    \KeywordTok{return}\NormalTok{;}
+  \NormalTok{\}}
+
+  \OtherTok{fs}\NormalTok{.}\FunctionTok{stat}\NormalTok{(}\StringTok{'file'}\NormalTok{, cb);}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Note: the nextTick queue is completely drained on each pass of the event
+loop \textbf{before} additional I/O is processed. As a result,
+recursively setting nextTick callbacks will block any I/O from
+happening, just like a \texttt{while(true);} loop.
+
+\subsection{process.umask({[}mask{]})}\label{process.umaskmask}
+
+Sets or reads the process's file mode creation mask. Child processes
+inherit the mask from the parent process. Returns the old mask if
+\texttt{mask} argument is given, otherwise returns the current mask.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{oldmask, newmask = }\DecValTok{0022}\NormalTok{;}
+
+\NormalTok{oldmask = }\OtherTok{process}\NormalTok{.}\FunctionTok{umask}\NormalTok{(newmask);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'Changed umask from: '} \NormalTok{+ }\OtherTok{oldmask}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\DecValTok{8}\NormalTok{) +}
+            \StringTok{' to '} \NormalTok{+ }\OtherTok{newmask}\NormalTok{.}\FunctionTok{toString}\NormalTok{(}\DecValTok{8}\NormalTok{));}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.uptime()}\label{process.uptime}
+
+Number of seconds Node has been running.
+
+\subsection{process.hrtime()}\label{process.hrtime}
+
+Returns the current high-resolution real time in a
+\texttt{{[}seconds,\ nanoseconds{]}} tuple Array. It is relative to an
+arbitrary time in the past. It is not related to the time of day and
+therefore not subject to clock drift. The primary use is for measuring
+performance between intervals.
+
+You may pass in the result of a previous call to
+\texttt{process.hrtime()} to get a diff reading, useful for benchmarks
+and measuring intervals:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{time = }\OtherTok{process}\NormalTok{.}\FunctionTok{hrtime}\NormalTok{();}
+\CommentTok{// [ 1800216, 25 ]}
+
+\FunctionTok{setTimeout}\NormalTok{(}\KeywordTok{function}\NormalTok{() \{}
+  \KeywordTok{var} \NormalTok{diff = }\OtherTok{process}\NormalTok{.}\FunctionTok{hrtime}\NormalTok{(time);}
+  \CommentTok{// [ 1, 552 ]}
+
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'benchmark took %d nanoseconds'}\NormalTok{, diff[}\DecValTok{0}\NormalTok{] * }\FloatTok{1e9} \NormalTok{+ diff[}\DecValTok{1}\NormalTok{]);}
+  \CommentTok{// benchmark took 1000000527 nanoseconds}
+\NormalTok{\}, }\DecValTok{1000}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{process.mainModule}\label{process.mainmodule}
+
+Alternate way to retrieve
+\href{modules.html\#modules_accessing_the_main_module}{\texttt{require.main}}.
+The difference is that if the main module changes at runtime,
+\texttt{require.main} might still refer to the original main module in
+modules that were required before the change occurred. Generally it's
+safe to assume that the two refer to the same module.
+
+As with \texttt{require.main}, it will be \texttt{undefined} if there
+was no entry script.

@@ -1,0 +1,38 @@
+\section{StringDecoder}\label{stringdecoder}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+To use this module, do
+\texttt{require(\textquotesingle{}string\_decoder\textquotesingle{})}.
+StringDecoder decodes a buffer to a string. It is a simple interface to
+\texttt{buffer.toString()} but provides additional support for utf8.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{StringDecoder = }\FunctionTok{require}\NormalTok{(}\StringTok{'string_decoder'}\NormalTok{).}\FunctionTok{StringDecoder}\NormalTok{;}
+\KeywordTok{var} \NormalTok{decoder = }\KeywordTok{new} \FunctionTok{StringDecoder}\NormalTok{(}\StringTok{'utf8'}\NormalTok{);}
+
+\KeywordTok{var} \NormalTok{cent = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{([}\BaseNTok{0xC2}\NormalTok{, }\BaseNTok{0xA2}\NormalTok{]);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{decoder}\NormalTok{.}\FunctionTok{write}\NormalTok{(cent));}
+
+\KeywordTok{var} \NormalTok{euro = }\KeywordTok{new} \FunctionTok{Buffer}\NormalTok{([}\BaseNTok{0xE2}\NormalTok{, }\BaseNTok{0x82}\NormalTok{, }\BaseNTok{0xAC}\NormalTok{]);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\OtherTok{decoder}\NormalTok{.}\FunctionTok{write}\NormalTok{(euro));}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Class: StringDecoder}\label{class-stringdecoder}
+
+Accepts a single argument, \texttt{encoding} which defaults to
+\texttt{utf8}.
+
+\subsubsection{decoder.write(buffer)}\label{decoder.writebuffer}
+
+Returns a decoded string.
+
+\subsubsection{decoder.end()}\label{decoder.end}
+
+Returns any trailing bytes that were left in the buffer.

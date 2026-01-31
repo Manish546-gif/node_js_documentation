@@ -1,0 +1,125 @@
+\section{console}\label{console}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{4} \NormalTok{- API Frozen}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \{Object\}
+\end{itemize}
+
+For printing to stdout and stderr. Similar to the console object
+functions provided by most web browsers, here the output is sent to
+stdout or stderr.
+
+The console functions are synchronous when the destination is a terminal
+or a file (to avoid lost messages in case of premature exit) and
+asynchronous when it's a pipe (to avoid blocking for long periods of
+time).
+
+That is, in the following example, stdout is non-blocking while stderr
+is blocking:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{$ node }\OtherTok{script}\NormalTok{.}\FunctionTok{js} \DecValTok{2}\NormalTok{> }\OtherTok{error}\NormalTok{.}\FunctionTok{log} \NormalTok{| tee }\OtherTok{info}\NormalTok{.}\FunctionTok{log}
+\end{Highlighting}
+\end{Shaded}
+
+In daily use, the blocking/non-blocking dichotomy is not something you
+should worry about unless you log huge amounts of data.
+
+\subsection{console.log({[}data{]}{[},
+\ldots{}{]})}\label{console.logdata}
+
+Prints to stdout with newline. This function can take multiple arguments
+in a \texttt{printf()}-like way. Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{count = }\DecValTok{5}\NormalTok{;}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'count: %d'}\NormalTok{, count);}
+\CommentTok{// prints 'count: 5'}
+\end{Highlighting}
+\end{Shaded}
+
+If formatting elements are not found in the first string then
+\texttt{util.inspect} is used on each argument. See
+\href{util.html\#util_util_format_format}{util.format()} for more
+information.
+
+\subsection{console.info({[}data{]}{[},
+\ldots{}{]})}\label{console.infodata}
+
+Same as \texttt{console.log}.
+
+\subsection{console.error({[}data{]}{[},
+\ldots{}{]})}\label{console.errordata}
+
+Same as \texttt{console.log} but prints to stderr.
+
+\subsection{console.warn({[}data{]}{[},
+\ldots{}{]})}\label{console.warndata}
+
+Same as \texttt{console.error}.
+
+\subsection{console.dir(obj{[},
+options{]})}\label{console.dirobj-options}
+
+Uses \texttt{util.inspect} on \texttt{obj} and prints resulting string
+to stdout. This function bypasses any custom \texttt{inspect()} function
+on \texttt{obj}. An optional \emph{options} object may be passed that
+alters certain aspects of the formatted string:
+
+\begin{itemize}
+\item
+  \texttt{showHidden} - if \texttt{true} then the object's
+  non-enumerable properties will be shown too. Defaults to
+  \texttt{false}.
+\item
+  \texttt{depth} - tells \texttt{inspect} how many times to recurse
+  while formatting the object. This is useful for inspecting large
+  complicated objects. Defaults to \texttt{2}. To make it recurse
+  indefinitely pass \texttt{null}.
+\item
+  \texttt{colors} - if \texttt{true}, then the output will be styled
+  with ANSI color codes. Defaults to \texttt{false}. Colors are
+  customizable, see below.
+\end{itemize}
+
+\subsection{console.time(label)}\label{console.timelabel}
+
+Mark a time.
+
+\subsection{console.timeEnd(label)}\label{console.timeendlabel}
+
+Finish timer, record output. Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{console}\NormalTok{.}\FunctionTok{time}\NormalTok{(}\StringTok{'100-elements'}\NormalTok{);}
+\KeywordTok{for} \NormalTok{(}\KeywordTok{var} \NormalTok{i = }\DecValTok{0}\NormalTok{; i < }\DecValTok{100}\NormalTok{; i++) \{}
+  \NormalTok{;}
+\NormalTok{\}}
+\OtherTok{console}\NormalTok{.}\FunctionTok{timeEnd}\NormalTok{(}\StringTok{'100-elements'}\NormalTok{);}
+\CommentTok{// prints 100-elements: 262ms}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{console.trace(message{[},
+\ldots{}{]})}\label{console.tracemessage}
+
+Print to stderr \texttt{\textquotesingle{}Trace\ :\textquotesingle{}},
+followed by the formatted message and stack trace to the current
+position.
+
+\subsection{console.assert(value{[}, message{]}{[},
+\ldots{}{]})}\label{console.assertvalue-message}
+
+Similar to
+\href{assert.html\#assert_assert_value_message_assert_ok_value_message}{assert.ok()},
+but the error message is formatted as \texttt{util.format(message...)}.

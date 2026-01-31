@@ -1,0 +1,1156 @@
+\section{File System}\label{file-system}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+File I/O is provided by simple wrappers around standard POSIX functions.
+To use this module do
+\texttt{require(\textquotesingle{}fs\textquotesingle{})}. All the
+methods have asynchronous and synchronous forms.
+
+The asynchronous form always take a completion callback as its last
+argument. The arguments passed to the completion callback depend on the
+method, but the first argument is always reserved for an exception. If
+the operation was completed successfully, then the first argument will
+be \texttt{null} or \texttt{undefined}.
+
+When using the synchronous form any exceptions are immediately thrown.
+You can use try/catch to handle exceptions or allow them to bubble up.
+
+Here is an example of the asynchronous version:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{fs = }\FunctionTok{require}\NormalTok{(}\StringTok{'fs'}\NormalTok{);}
+
+\OtherTok{fs}\NormalTok{.}\FunctionTok{unlink}\NormalTok{(}\StringTok{'/tmp/hello'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'successfully deleted /tmp/hello'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+Here is the synchronous version:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{fs = }\FunctionTok{require}\NormalTok{(}\StringTok{'fs'}\NormalTok{);}
+
+\OtherTok{fs}\NormalTok{.}\FunctionTok{unlinkSync}\NormalTok{(}\StringTok{'/tmp/hello'}\NormalTok{);}
+\OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'successfully deleted /tmp/hello'}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+With the asynchronous methods there is no guaranteed ordering. So the
+following is prone to error:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{rename}\NormalTok{(}\StringTok{'/tmp/hello'}\NormalTok{, }\StringTok{'/tmp/world'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'renamed complete'}\NormalTok{);}
+\NormalTok{\});}
+\OtherTok{fs}\NormalTok{.}\FunctionTok{stat}\NormalTok{(}\StringTok{'/tmp/world'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err, stats) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'stats: '} \NormalTok{+ }\OtherTok{JSON}\NormalTok{.}\FunctionTok{stringify}\NormalTok{(stats));}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+It could be that \texttt{fs.stat} is executed before \texttt{fs.rename}.
+The correct way to do this is to chain the callbacks.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{rename}\NormalTok{(}\StringTok{'/tmp/hello'}\NormalTok{, }\StringTok{'/tmp/world'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{fs}\NormalTok{.}\FunctionTok{stat}\NormalTok{(}\StringTok{'/tmp/world'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err, stats) \{}
+    \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'stats: '} \NormalTok{+ }\OtherTok{JSON}\NormalTok{.}\FunctionTok{stringify}\NormalTok{(stats));}
+  \NormalTok{\});}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+In busy processes, the programmer is \emph{strongly encouraged} to use
+the asynchronous versions of these calls. The synchronous versions will
+block the entire process until they complete--halting all connections.
+
+Relative path to filename can be used, remember however that this path
+will be relative to \texttt{process.cwd()}.
+
+Most fs functions let you omit the callback argument. If you do, a
+default callback is used that rethrows errors. To get a trace to the
+original call site, set the NODE\_DEBUG environment variable:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{$ cat }\OtherTok{script}\NormalTok{.}\FunctionTok{js}
+\KeywordTok{function} \FunctionTok{bad}\NormalTok{() \{}
+  \FunctionTok{require}\NormalTok{(}\StringTok{'fs'}\NormalTok{).}\FunctionTok{readFile}\NormalTok{(}\StringTok{'/'}\NormalTok{);}
+\NormalTok{\}}
+\FunctionTok{bad}\NormalTok{();}
+
+\NormalTok{$ env NODE_DEBUG=fs node }\OtherTok{script}\NormalTok{.}\FunctionTok{js}
+\OtherTok{fs}\NormalTok{.}\FunctionTok{js}\NormalTok{:}\DecValTok{66}
+        \KeywordTok{throw} \NormalTok{err;}
+              \NormalTok{^}
+\NormalTok{Error: EISDIR, read}
+    \NormalTok{at }\FunctionTok{rethrow} \NormalTok{(}\OtherTok{fs}\NormalTok{.}\FunctionTok{js}\NormalTok{:}\DecValTok{61}\NormalTok{:}\DecValTok{21}\NormalTok{)}
+    \NormalTok{at }\FunctionTok{maybeCallback} \NormalTok{(}\OtherTok{fs}\NormalTok{.}\FunctionTok{js}\NormalTok{:}\DecValTok{79}\NormalTok{:}\DecValTok{42}\NormalTok{)}
+    \NormalTok{at }\OtherTok{Object}\NormalTok{.}\OtherTok{fs}\NormalTok{.}\FunctionTok{readFile} \NormalTok{(}\OtherTok{fs}\NormalTok{.}\FunctionTok{js}\NormalTok{:}\DecValTok{153}\NormalTok{:}\DecValTok{18}\NormalTok{)}
+    \NormalTok{at }\FunctionTok{bad} \NormalTok{(}\OtherTok{/path/to/script.js:2:17}\FloatTok{)}
+\OtherTok{    at Object.<anonymous> }\FloatTok{(}\OtherTok{/path/to/script}\NormalTok{.}\FunctionTok{js}\NormalTok{:}\DecValTok{5}\NormalTok{:}\DecValTok{1}\NormalTok{)}
+    \NormalTok{<}\OtherTok{etc}\NormalTok{.>}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{fs.rename(oldPath, newPath,
+callback)}\label{fs.renameoldpath-newpath-callback}
+
+Asynchronous rename(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.renameSync(oldPath,
+newPath)}\label{fs.renamesyncoldpath-newpath}
+
+Synchronous rename(2). Returns \texttt{undefined}.
+
+\subsection{fs.ftruncate(fd, len,
+callback)}\label{fs.ftruncatefd-len-callback}
+
+Asynchronous ftruncate(2). No arguments other than a possible exception
+are given to the completion callback.
+
+\subsection{fs.ftruncateSync(fd, len)}\label{fs.ftruncatesyncfd-len}
+
+Synchronous ftruncate(2). Returns \texttt{undefined}.
+
+\subsection{fs.truncate(path, len,
+callback)}\label{fs.truncatepath-len-callback}
+
+Asynchronous truncate(2). No arguments other than a possible exception
+are given to the completion callback. A file descriptor can also be
+passed as the first argument. In this case, \texttt{fs.ftruncate()} is
+called.
+
+\subsection{fs.truncateSync(path, len)}\label{fs.truncatesyncpath-len}
+
+Synchronous truncate(2). Returns \texttt{undefined}.
+
+\subsection{fs.chown(path, uid, gid,
+callback)}\label{fs.chownpath-uid-gid-callback}
+
+Asynchronous chown(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.chownSync(path, uid,
+gid)}\label{fs.chownsyncpath-uid-gid}
+
+Synchronous chown(2). Returns \texttt{undefined}.
+
+\subsection{fs.fchown(fd, uid, gid,
+callback)}\label{fs.fchownfd-uid-gid-callback}
+
+Asynchronous fchown(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.fchownSync(fd, uid, gid)}\label{fs.fchownsyncfd-uid-gid}
+
+Synchronous fchown(2). Returns \texttt{undefined}.
+
+\subsection{fs.lchown(path, uid, gid,
+callback)}\label{fs.lchownpath-uid-gid-callback}
+
+Asynchronous lchown(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.lchownSync(path, uid,
+gid)}\label{fs.lchownsyncpath-uid-gid}
+
+Synchronous lchown(2). Returns \texttt{undefined}.
+
+\subsection{fs.chmod(path, mode,
+callback)}\label{fs.chmodpath-mode-callback}
+
+Asynchronous chmod(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.chmodSync(path, mode)}\label{fs.chmodsyncpath-mode}
+
+Synchronous chmod(2). Returns \texttt{undefined}.
+
+\subsection{fs.fchmod(fd, mode,
+callback)}\label{fs.fchmodfd-mode-callback}
+
+Asynchronous fchmod(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.fchmodSync(fd, mode)}\label{fs.fchmodsyncfd-mode}
+
+Synchronous fchmod(2). Returns \texttt{undefined}.
+
+\subsection{fs.lchmod(path, mode,
+callback)}\label{fs.lchmodpath-mode-callback}
+
+Asynchronous lchmod(2). No arguments other than a possible exception are
+given to the completion callback.
+
+Only available on Mac OS X.
+
+\subsection{fs.lchmodSync(path, mode)}\label{fs.lchmodsyncpath-mode}
+
+Synchronous lchmod(2). Returns \texttt{undefined}.
+
+\subsection{fs.stat(path, callback)}\label{fs.statpath-callback}
+
+Asynchronous stat(2). The callback gets two arguments
+\texttt{(err,\ stats)} where \texttt{stats} is a
+\hyperref[fsux5fclassux5ffsux5fstats]{fs.Stats} object. See the
+\hyperref[fsux5fclassux5ffsux5fstats]{fs.Stats} section below for more
+information.
+
+\subsection{fs.lstat(path, callback)}\label{fs.lstatpath-callback}
+
+Asynchronous lstat(2). The callback gets two arguments
+\texttt{(err,\ stats)} where \texttt{stats} is a \texttt{fs.Stats}
+object. \texttt{lstat()} is identical to \texttt{stat()}, except that if
+\texttt{path} is a symbolic link, then the link itself is stat-ed, not
+the file that it refers to.
+
+\subsection{fs.fstat(fd, callback)}\label{fs.fstatfd-callback}
+
+Asynchronous fstat(2). The callback gets two arguments
+\texttt{(err,\ stats)} where \texttt{stats} is a \texttt{fs.Stats}
+object. \texttt{fstat()} is identical to \texttt{stat()}, except that
+the file to be stat-ed is specified by the file descriptor \texttt{fd}.
+
+\subsection{fs.statSync(path)}\label{fs.statsyncpath}
+
+Synchronous stat(2). Returns an instance of \texttt{fs.Stats}.
+
+\subsection{fs.lstatSync(path)}\label{fs.lstatsyncpath}
+
+Synchronous lstat(2). Returns an instance of \texttt{fs.Stats}.
+
+\subsection{fs.fstatSync(fd)}\label{fs.fstatsyncfd}
+
+Synchronous fstat(2). Returns an instance of \texttt{fs.Stats}.
+
+\subsection{fs.link(srcpath, dstpath,
+callback)}\label{fs.linksrcpath-dstpath-callback}
+
+Asynchronous link(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.linkSync(srcpath,
+dstpath)}\label{fs.linksyncsrcpath-dstpath}
+
+Synchronous link(2). Returns \texttt{undefined}.
+
+\subsection{fs.symlink(srcpath, dstpath{[}, type{]},
+callback)}\label{fs.symlinksrcpath-dstpath-type-callback}
+
+Asynchronous symlink(2). No arguments other than a possible exception
+are given to the completion callback. The \texttt{type} argument can be
+set to \texttt{\textquotesingle{}dir\textquotesingle{}},
+\texttt{\textquotesingle{}file\textquotesingle{}}, or
+\texttt{\textquotesingle{}junction\textquotesingle{}} (default is
+\texttt{\textquotesingle{}file\textquotesingle{}}) and is only available
+on Windows (ignored on other platforms). Note that Windows junction
+points require the destination path to be absolute. When using
+\texttt{\textquotesingle{}junction\textquotesingle{}}, the
+\texttt{destination} argument will automatically be normalized to
+absolute path.
+
+\subsection{fs.symlinkSync(srcpath, dstpath{[},
+type{]})}\label{fs.symlinksyncsrcpath-dstpath-type}
+
+Synchronous symlink(2). Returns \texttt{undefined}.
+
+\subsection{fs.readlink(path, callback)}\label{fs.readlinkpath-callback}
+
+Asynchronous readlink(2). The callback gets two arguments
+\texttt{(err,\ linkString)}.
+
+\subsection{fs.readlinkSync(path)}\label{fs.readlinksyncpath}
+
+Synchronous readlink(2). Returns the symbolic link's string value.
+
+\subsection{fs.realpath(path{[}, cache{]},
+callback)}\label{fs.realpathpath-cache-callback}
+
+Asynchronous realpath(2). The \texttt{callback} gets two arguments
+\texttt{(err,\ resolvedPath)}. May use \texttt{process.cwd} to resolve
+relative paths. \texttt{cache} is an object literal of mapped paths that
+can be used to force a specific path resolution or avoid additional
+\texttt{fs.stat} calls for known real paths.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{cache = \{}\StringTok{'/etc'}\NormalTok{:}\StringTok{'/private/etc'}\NormalTok{\};}
+\OtherTok{fs}\NormalTok{.}\FunctionTok{realpath}\NormalTok{(}\StringTok{'/etc/passwd'}\NormalTok{, cache, }\KeywordTok{function} \NormalTok{(err, resolvedPath) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(resolvedPath);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{fs.realpathSync(path{[},
+cache{]})}\label{fs.realpathsyncpath-cache}
+
+Synchronous realpath(2). Returns the resolved path.
+
+\subsection{fs.unlink(path, callback)}\label{fs.unlinkpath-callback}
+
+Asynchronous unlink(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.unlinkSync(path)}\label{fs.unlinksyncpath}
+
+Synchronous unlink(2). Returns \texttt{undefined}.
+
+\subsection{fs.rmdir(path, callback)}\label{fs.rmdirpath-callback}
+
+Asynchronous rmdir(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.rmdirSync(path)}\label{fs.rmdirsyncpath}
+
+Synchronous rmdir(2). Returns \texttt{undefined}.
+
+\subsection{fs.mkdir(path{[}, mode{]},
+callback)}\label{fs.mkdirpath-mode-callback}
+
+Asynchronous mkdir(2). No arguments other than a possible exception are
+given to the completion callback. \texttt{mode} defaults to
+\texttt{0777}.
+
+\subsection{fs.mkdirSync(path{[}, mode{]})}\label{fs.mkdirsyncpath-mode}
+
+Synchronous mkdir(2). Returns \texttt{undefined}.
+
+\subsection{fs.readdir(path, callback)}\label{fs.readdirpath-callback}
+
+Asynchronous readdir(3). Reads the contents of a directory. The callback
+gets two arguments \texttt{(err,\ files)} where \texttt{files} is an
+array of the names of the files in the directory excluding
+\texttt{\textquotesingle{}.\textquotesingle{}} and
+\texttt{\textquotesingle{}..\textquotesingle{}}.
+
+\subsection{fs.readdirSync(path)}\label{fs.readdirsyncpath}
+
+Synchronous readdir(3). Returns an array of filenames excluding
+\texttt{\textquotesingle{}.\textquotesingle{}} and
+\texttt{\textquotesingle{}..\textquotesingle{}}.
+
+\subsection{fs.close(fd, callback)}\label{fs.closefd-callback}
+
+Asynchronous close(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.closeSync(fd)}\label{fs.closesyncfd}
+
+Synchronous close(2). Returns \texttt{undefined}.
+
+\subsection{fs.open(path, flags{[}, mode{]},
+callback)}\label{fs.openpath-flags-mode-callback}
+
+Asynchronous file open. See open(2). \texttt{flags} can be:
+
+\begin{itemize}
+\item
+  \texttt{\textquotesingle{}r\textquotesingle{}} - Open file for
+  reading. An exception occurs if the file does not exist.
+\item
+  \texttt{\textquotesingle{}r+\textquotesingle{}} - Open file for
+  reading and writing. An exception occurs if the file does not exist.
+\item
+  \texttt{\textquotesingle{}rs\textquotesingle{}} - Open file for
+  reading in synchronous mode. Instructs the operating system to bypass
+  the local file system cache.
+\end{itemize}
+
+This is primarily useful for opening files on NFS mounts as it allows
+you to skip the potentially stale local cache. It has a very real impact
+on I/O performance so don't use this flag unless you need it.
+
+Note that this doesn't turn \texttt{fs.open()} into a synchronous
+blocking call. If that's what you want then you should be using
+\texttt{fs.openSync()}
+
+\begin{itemize}
+\item
+  \texttt{\textquotesingle{}rs+\textquotesingle{}} - Open file for
+  reading and writing, telling the OS to open it synchronously. See
+  notes for \texttt{\textquotesingle{}rs\textquotesingle{}} about using
+  this with caution.
+\item
+  \texttt{\textquotesingle{}w\textquotesingle{}} - Open file for
+  writing. The file is created (if it does not exist) or truncated (if
+  it exists).
+\item
+  \texttt{\textquotesingle{}wx\textquotesingle{}} - Like
+  \texttt{\textquotesingle{}w\textquotesingle{}} but fails if
+  \texttt{path} exists.
+\item
+  \texttt{\textquotesingle{}w+\textquotesingle{}} - Open file for
+  reading and writing. The file is created (if it does not exist) or
+  truncated (if it exists).
+\item
+  \texttt{\textquotesingle{}wx+\textquotesingle{}} - Like
+  \texttt{\textquotesingle{}w+\textquotesingle{}} but fails if
+  \texttt{path} exists.
+\item
+  \texttt{\textquotesingle{}a\textquotesingle{}} - Open file for
+  appending. The file is created if it does not exist.
+\item
+  \texttt{\textquotesingle{}ax\textquotesingle{}} - Like
+  \texttt{\textquotesingle{}a\textquotesingle{}} but fails if
+  \texttt{path} exists.
+\item
+  \texttt{\textquotesingle{}a+\textquotesingle{}} - Open file for
+  reading and appending. The file is created if it does not exist.
+\item
+  \texttt{\textquotesingle{}ax+\textquotesingle{}} - Like
+  \texttt{\textquotesingle{}a+\textquotesingle{}} but fails if
+  \texttt{path} exists.
+\end{itemize}
+
+\texttt{mode} sets the file mode (permission and sticky bits), but only
+if the file was created. It defaults to \texttt{0666}, readable and
+writeable.
+
+The callback gets two arguments \texttt{(err,\ fd)}.
+
+The exclusive flag \texttt{\textquotesingle{}x\textquotesingle{}}
+(\texttt{O\_EXCL} flag in open(2)) ensures that \texttt{path} is newly
+created. On POSIX systems, \texttt{path} is considered to exist even if
+it is a symlink to a non-existent file. The exclusive flag may or may
+not work with network file systems.
+
+On Linux, positional writes don't work when the file is opened in append
+mode. The kernel ignores the position argument and always appends the
+data to the end of the file.
+
+\subsection{fs.openSync(path, flags{[},
+mode{]})}\label{fs.opensyncpath-flags-mode}
+
+Synchronous version of \texttt{fs.open()}. Returns an integer
+representing the file descriptor.
+
+\subsection{fs.utimes(path, atime, mtime,
+callback)}\label{fs.utimespath-atime-mtime-callback}
+
+Change file timestamps of the file referenced by the supplied path.
+
+\subsection{fs.utimesSync(path, atime,
+mtime)}\label{fs.utimessyncpath-atime-mtime}
+
+Synchronous version of \texttt{fs.utimes()}. Returns \texttt{undefined}.
+
+\subsection{fs.futimes(fd, atime, mtime,
+callback)}\label{fs.futimesfd-atime-mtime-callback}
+
+Change the file timestamps of a file referenced by the supplied file
+descriptor.
+
+\subsection{fs.futimesSync(fd, atime,
+mtime)}\label{fs.futimessyncfd-atime-mtime}
+
+Synchronous version of \texttt{fs.futimes()}. Returns
+\texttt{undefined}.
+
+\subsection{fs.fsync(fd, callback)}\label{fs.fsyncfd-callback}
+
+Asynchronous fsync(2). No arguments other than a possible exception are
+given to the completion callback.
+
+\subsection{fs.fsyncSync(fd)}\label{fs.fsyncsyncfd}
+
+Synchronous fsync(2). Returns \texttt{undefined}.
+
+\subsection{fs.write(fd, buffer, offset, length{[}, position{]},
+callback)}\label{fs.writefd-buffer-offset-length-position-callback}
+
+Write \texttt{buffer} to the file specified by \texttt{fd}.
+
+\texttt{offset} and \texttt{length} determine the part of the buffer to
+be written.
+
+\texttt{position} refers to the offset from the beginning of the file
+where this data should be written. If
+\texttt{typeof\ position\ !==\ \textquotesingle{}number\textquotesingle{}},
+the data will be written at the current position. See pwrite(2).
+
+The callback will be given three arguments
+\texttt{(err,\ written,\ buffer)} where \texttt{written} specifies how
+many \emph{bytes} were written from \texttt{buffer}.
+
+Note that it is unsafe to use \texttt{fs.write} multiple times on the
+same file without waiting for the callback. For this scenario,
+\texttt{fs.createWriteStream} is strongly recommended.
+
+On Linux, positional writes don't work when the file is opened in append
+mode. The kernel ignores the position argument and always appends the
+data to the end of the file.
+
+\subsection{fs.write(fd, data{[}, position{[}, encoding{]}{]},
+callback)}\label{fs.writefd-data-position-encoding-callback}
+
+Write \texttt{data} to the file specified by \texttt{fd}. If
+\texttt{data} is not a Buffer instance then the value will be coerced to
+a string.
+
+\texttt{position} refers to the offset from the beginning of the file
+where this data should be written. If
+\texttt{typeof\ position\ !==\ \textquotesingle{}number\textquotesingle{}}
+the data will be written at the current position. See pwrite(2).
+
+\texttt{encoding} is the expected string encoding.
+
+The callback will receive the arguments
+\texttt{(err,\ written,\ string)} where \texttt{written} specifies how
+many \emph{bytes} the passed string required to be written. Note that
+bytes written is not the same as string characters. See
+\href{buffer.html\#buffer_class_method_buffer_bytelength_string_encoding}{Buffer.byteLength}.
+
+Unlike when writing \texttt{buffer}, the entire string must be written.
+No substring may be specified. This is because the byte offset of the
+resulting data may not be the same as the string offset.
+
+Note that it is unsafe to use \texttt{fs.write} multiple times on the
+same file without waiting for the callback. For this scenario,
+\texttt{fs.createWriteStream} is strongly recommended.
+
+On Linux, positional writes don't work when the file is opened in append
+mode. The kernel ignores the position argument and always appends the
+data to the end of the file.
+
+\subsection{fs.writeSync(fd, buffer, offset, length{[},
+position{]})}\label{fs.writesyncfd-buffer-offset-length-position}
+
+\subsection{fs.writeSync(fd, data{[}, position{[},
+encoding{]}{]})}\label{fs.writesyncfd-data-position-encoding}
+
+Synchronous versions of \texttt{fs.write()}. Returns the number of bytes
+written.
+
+\subsection{fs.read(fd, buffer, offset, length, position,
+callback)}\label{fs.readfd-buffer-offset-length-position-callback}
+
+Read data from the file specified by \texttt{fd}.
+
+\texttt{buffer} is the buffer that the data will be written to.
+
+\texttt{offset} is the offset in the buffer to start writing at.
+
+\texttt{length} is an integer specifying the number of bytes to read.
+
+\texttt{position} is an integer specifying where to begin reading from
+in the file. If \texttt{position} is \texttt{null}, data will be read
+from the current file position.
+
+The callback is given the three arguments,
+\texttt{(err,\ bytesRead,\ buffer)}.
+
+\subsection{fs.readSync(fd, buffer, offset, length,
+position)}\label{fs.readsyncfd-buffer-offset-length-position}
+
+Synchronous version of \texttt{fs.read}. Returns the number of
+\texttt{bytesRead}.
+
+\subsection{fs.readFile(filename{[}, options{]},
+callback)}\label{fs.readfilefilename-options-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{filename} \{String\}
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{encoding} \{String \textbar{} Null\} default = \texttt{null}
+\item
+  \texttt{flag} \{String\} default =
+  \texttt{\textquotesingle{}r\textquotesingle{}}
+\item
+  \texttt{callback} \{Function\}
+\end{itemize}
+
+Asynchronously reads the entire contents of a file. Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{readFile}\NormalTok{(}\StringTok{'/etc/passwd'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err, data) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(data);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+The callback is passed two arguments \texttt{(err,\ data)}, where
+\texttt{data} is the contents of the file.
+
+If no encoding is specified, then the raw buffer is returned.
+
+\subsection{fs.readFileSync(filename{[},
+options{]})}\label{fs.readfilesyncfilename-options}
+
+Synchronous version of \texttt{fs.readFile}. Returns the contents of the
+\texttt{filename}.
+
+If the \texttt{encoding} option is specified then this function returns
+a string. Otherwise it returns a buffer.
+
+\subsection{fs.writeFile(filename, data{[}, options{]},
+callback)}\label{fs.writefilefilename-data-options-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{filename} \{String\}
+\item
+  \texttt{data} \{String \textbar{} Buffer\}
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{encoding} \{String \textbar{} Null\} default =
+  \texttt{\textquotesingle{}utf8\textquotesingle{}}
+\item
+  \texttt{mode} \{Number\} default = \texttt{438} (aka \texttt{0666} in
+  Octal)
+\item
+  \texttt{flag} \{String\} default =
+  \texttt{\textquotesingle{}w\textquotesingle{}}
+\item
+  \texttt{callback} \{Function\}
+\end{itemize}
+
+Asynchronously writes data to a file, replacing the file if it already
+exists. \texttt{data} can be a string or a buffer.
+
+The \texttt{encoding} option is ignored if \texttt{data} is a buffer. It
+defaults to \texttt{\textquotesingle{}utf8\textquotesingle{}}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{writeFile}\NormalTok{(}\StringTok{'message.txt'}\NormalTok{, }\StringTok{'Hello Node'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'It}\CharTok{\textbackslash{}'}\StringTok{s saved!'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{fs.writeFileSync(filename, data{[},
+options{]})}\label{fs.writefilesyncfilename-data-options}
+
+The synchronous version of \texttt{fs.writeFile}. Returns
+\texttt{undefined}.
+
+\subsection{fs.appendFile(filename, data{[}, options{]},
+callback)}\label{fs.appendfilefilename-data-options-callback}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{filename} \{String\}
+\item
+  \texttt{data} \{String \textbar{} Buffer\}
+\item
+  \texttt{options} \{Object\}
+\item
+  \texttt{encoding} \{String \textbar{} Null\} default =
+  \texttt{\textquotesingle{}utf8\textquotesingle{}}
+\item
+  \texttt{mode} \{Number\} default = \texttt{438} (aka \texttt{0666} in
+  Octal)
+\item
+  \texttt{flag} \{String\} default =
+  \texttt{\textquotesingle{}a\textquotesingle{}}
+\item
+  \texttt{callback} \{Function\}
+\end{itemize}
+
+Asynchronously append data to a file, creating the file if it not yet
+exists. \texttt{data} can be a string or a buffer.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{appendFile}\NormalTok{(}\StringTok{'message.txt'}\NormalTok{, }\StringTok{'data to append'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'The "data to append" was appended to file!'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{fs.appendFileSync(filename, data{[},
+options{]})}\label{fs.appendfilesyncfilename-data-options}
+
+The synchronous version of \texttt{fs.appendFile}. Returns
+\texttt{undefined}.
+
+\subsection{fs.watchFile(filename{[}, options{]},
+listener)}\label{fs.watchfilefilename-options-listener}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{2} \NormalTok{- }\OtherTok{Unstable}\NormalTok{.  }\FunctionTok{Use} \OtherTok{fs}\NormalTok{.}\FunctionTok{watch} \FunctionTok{instead}\NormalTok{, }\KeywordTok{if} \OtherTok{possible}\NormalTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+Watch for changes on \texttt{filename}. The callback \texttt{listener}
+will be called each time the file is accessed.
+
+The second argument is optional. The \texttt{options} if provided should
+be an object containing two members a boolean, \texttt{persistent}, and
+\texttt{interval}. \texttt{persistent} indicates whether the process
+should continue to run as long as files are being watched.
+\texttt{interval} indicates how often the target should be polled, in
+milliseconds. The default is
+\texttt{\{\ persistent:\ true,\ interval:\ 5007\ \}}.
+
+The \texttt{listener} gets two arguments the current stat object and the
+previous stat object:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{watchFile}\NormalTok{(}\StringTok{'message.text'}\NormalTok{, }\KeywordTok{function} \NormalTok{(curr, prev) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'the current mtime is: '} \NormalTok{+ }\OtherTok{curr}\NormalTok{.}\FunctionTok{mtime}\NormalTok{);}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'the previous mtime was: '} \NormalTok{+ }\OtherTok{prev}\NormalTok{.}\FunctionTok{mtime}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+These stat objects are instances of \texttt{fs.Stat}.
+
+If you want to be notified when the file was modified, not just accessed
+you need to compare \texttt{curr.mtime} and \texttt{prev.mtime}.
+
+\subsection{fs.unwatchFile(filename{[},
+listener{]})}\label{fs.unwatchfilefilename-listener}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{2} \NormalTok{- }\OtherTok{Unstable}\NormalTok{.  }\FunctionTok{Use} \OtherTok{fs}\NormalTok{.}\FunctionTok{watch} \FunctionTok{instead}\NormalTok{, }\KeywordTok{if} \OtherTok{possible}\NormalTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+Stop watching for changes on \texttt{filename}. If \texttt{listener} is
+specified, only that particular listener is removed. Otherwise,
+\emph{all} listeners are removed and you have effectively stopped
+watching \texttt{filename}.
+
+Calling \texttt{fs.unwatchFile()} with a filename that is not being
+watched is a no-op, not an error.
+
+\subsection{fs.watch(filename{[}, options{]}{[},
+listener{]})}\label{fs.watchfilename-options-listener}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{2} \NormalTok{- }\OtherTok{Unstable}\NormalTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+Watch for changes on \texttt{filename}, where \texttt{filename} is
+either a file or a directory. The returned object is a
+\hyperref[fsux5fclassux5ffsux5ffswatcher]{fs.FSWatcher}.
+
+The second argument is optional. The \texttt{options} if provided should
+be an object. The supported boolean members are \texttt{persistent} and
+\texttt{recursive}. \texttt{persistent} indicates whether the process
+should continue to run as long as files are being watched.
+\texttt{recursive} indicates whether all subdirectories should be
+watched, or only the current directory. This applies when a directory is
+specified, and only on supported platforms (See Caveats below).
+
+The default is \texttt{\{\ persistent:\ true,\ recursive:\ false\ \}}.
+
+The listener callback gets two arguments \texttt{(event,\ filename)}.
+\texttt{event} is either `rename' or `change', and \texttt{filename} is
+the name of the file which triggered the event.
+
+\subsubsection{Caveats}\label{caveats}
+
+The \texttt{fs.watch} API is not 100\% consistent across platforms, and
+is unavailable in some situations.
+
+The recursive option is currently supported on OS X. Only FSEvents
+supports this type of file watching so it is unlikely any additional
+platforms will be added soon.
+
+\paragraph{Availability}\label{availability}
+
+This feature depends on the underlying operating system providing a way
+to be notified of filesystem changes.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  On Linux systems, this uses \texttt{inotify}.
+\item
+  On BSD systems, this uses \texttt{kqueue}.
+\item
+  On OS X, this uses \texttt{kqueue} for files and `FSEvents' for
+  directories.
+\item
+  On SunOS systems (including Solaris and SmartOS), this uses
+  \texttt{event\ ports}.
+\item
+  On Windows systems, this feature depends on
+  \texttt{ReadDirectoryChangesW}.
+\end{itemize}
+
+If the underlying functionality is not available for some reason, then
+\texttt{fs.watch} will not be able to function. For example, watching
+files or directories on network file systems (NFS, SMB, etc.) often
+doesn't work reliably or at all.
+
+You can still use \texttt{fs.watchFile}, which uses stat polling, but it
+is slower and less reliable.
+
+\paragraph{Filename Argument}\label{filename-argument}
+
+Providing \texttt{filename} argument in the callback is not supported on
+every platform (currently it's only supported on Linux and Windows).
+Even on supported platforms \texttt{filename} is not always guaranteed
+to be provided. Therefore, don't assume that \texttt{filename} argument
+is always provided in the callback, and have some fallback logic if it
+is null.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{watch}\NormalTok{(}\StringTok{'somedir'}\NormalTok{, }\KeywordTok{function} \NormalTok{(event, filename) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'event is: '} \NormalTok{+ event);}
+  \KeywordTok{if} \NormalTok{(filename) \{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'filename provided: '} \NormalTok{+ filename);}
+  \NormalTok{\} }\KeywordTok{else} \NormalTok{\{}
+    \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'filename not provided'}\NormalTok{);}
+  \NormalTok{\}}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{fs.exists(path, callback)}\label{fs.existspath-callback}
+
+Test whether or not the given path exists by checking with the file
+system. Then call the \texttt{callback} argument with either true or
+false. Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{exists}\NormalTok{(}\StringTok{'/etc/passwd'}\NormalTok{, }\KeywordTok{function} \NormalTok{(exists) \{}
+  \OtherTok{util}\NormalTok{.}\FunctionTok{debug}\NormalTok{(exists ? }\StringTok{"it's there"} \NormalTok{: }\StringTok{"no passwd!"}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{fs.exists()} is an anachronism and exists only for historical
+reasons. There should almost never be a reason to use it in your own
+code.
+
+In particular, checking if a file exists before opening it is an
+anti-pattern that leaves you vulnerable to race conditions: another
+process may remove the file between the calls to \texttt{fs.exists()}
+and \texttt{fs.open()}. Just open the file and handle the error when
+it's not there.
+
+\texttt{fs.exists()} will be deprecated.
+
+\subsection{fs.existsSync(path)}\label{fs.existssyncpath}
+
+Synchronous version of \texttt{fs.exists()}. Returns \texttt{true} if
+the file exists, \texttt{false} otherwise.
+
+\texttt{fs.existsSync()} will be deprecated.
+
+\subsection{fs.access(path{[}, mode{]},
+callback)}\label{fs.accesspath-mode-callback}
+
+Tests a user's permissions for the file specified by \texttt{path}.
+\texttt{mode} is an optional integer that specifies the accessibility
+checks to be performed. The following constants define the possible
+values of \texttt{mode}. It is possible to create a mask consisting of
+the bitwise OR of two or more values.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{fs.F\_OK} - File is visible to the calling process. This is
+  useful for determining if a file exists, but says nothing about
+  \texttt{rwx} permissions. Default if no \texttt{mode} is specified.
+\item
+  \texttt{fs.R\_OK} - File can be read by the calling process.
+\item
+  \texttt{fs.W\_OK} - File can be written by the calling process.
+\item
+  \texttt{fs.X\_OK} - File can be executed by the calling process. This
+  has no effect on Windows (will behave like \texttt{fs.F\_OK}).
+\end{itemize}
+
+The final argument, \texttt{callback}, is a callback function that is
+invoked with a possible error argument. If any of the accessibility
+checks fail, the error argument will be populated. The following example
+checks if the file \texttt{/etc/passwd} can be read and written by the
+current process.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{access}\NormalTok{(}\StringTok{'/etc/passwd'}\NormalTok{, }\OtherTok{fs}\NormalTok{.}\FunctionTok{R_OK} \NormalTok{| }\OtherTok{fs}\NormalTok{.}\FunctionTok{W_OK}\NormalTok{, }\KeywordTok{function}\NormalTok{(err) \{}
+  \OtherTok{util}\NormalTok{.}\FunctionTok{debug}\NormalTok{(err ? }\StringTok{'no access!'} \NormalTok{: }\StringTok{'can read/write'}\NormalTok{);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{fs.accessSync(path{[},
+mode{]})}\label{fs.accesssyncpath-mode}
+
+Synchronous version of \texttt{fs.access}. This throws if any
+accessibility checks fail, and does nothing otherwise.
+
+\subsection{Class: fs.Stats}\label{class-fs.stats}
+
+Objects returned from \texttt{fs.stat()}, \texttt{fs.lstat()} and
+\texttt{fs.fstat()} and their synchronous counterparts are of this type.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{stats.isFile()}
+\item
+  \texttt{stats.isDirectory()}
+\item
+  \texttt{stats.isBlockDevice()}
+\item
+  \texttt{stats.isCharacterDevice()}
+\item
+  \texttt{stats.isSymbolicLink()} (only valid with \texttt{fs.lstat()})
+\item
+  \texttt{stats.isFIFO()}
+\item
+  \texttt{stats.isSocket()}
+\end{itemize}
+
+For a regular file \texttt{util.inspect(stats)} would return a string
+very similar to this:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{dev}\NormalTok{: }\DecValTok{2114}\NormalTok{,}
+  \DataTypeTok{ino}\NormalTok{: }\DecValTok{48064969}\NormalTok{,}
+  \DataTypeTok{mode}\NormalTok{: }\DecValTok{33188}\NormalTok{,}
+  \DataTypeTok{nlink}\NormalTok{: }\DecValTok{1}\NormalTok{,}
+  \DataTypeTok{uid}\NormalTok{: }\DecValTok{85}\NormalTok{,}
+  \DataTypeTok{gid}\NormalTok{: }\DecValTok{100}\NormalTok{,}
+  \DataTypeTok{rdev}\NormalTok{: }\DecValTok{0}\NormalTok{,}
+  \DataTypeTok{size}\NormalTok{: }\DecValTok{527}\NormalTok{,}
+  \DataTypeTok{blksize}\NormalTok{: }\DecValTok{4096}\NormalTok{,}
+  \DataTypeTok{blocks}\NormalTok{: }\DecValTok{8}\NormalTok{,}
+  \DataTypeTok{atime}\NormalTok{: Mon, }\DecValTok{10} \NormalTok{Oct }\DecValTok{2011} \DecValTok{23}\NormalTok{:}\DecValTok{24}\NormalTok{:}\DecValTok{11} \NormalTok{GMT,}
+  \DataTypeTok{mtime}\NormalTok{: Mon, }\DecValTok{10} \NormalTok{Oct }\DecValTok{2011} \DecValTok{23}\NormalTok{:}\DecValTok{24}\NormalTok{:}\DecValTok{11} \NormalTok{GMT,}
+  \DataTypeTok{ctime}\NormalTok{: Mon, }\DecValTok{10} \NormalTok{Oct }\DecValTok{2011} \DecValTok{23}\NormalTok{:}\DecValTok{24}\NormalTok{:}\DecValTok{11} \NormalTok{GMT,}
+  \DataTypeTok{birthtime}\NormalTok{: Mon, }\DecValTok{10} \NormalTok{Oct }\DecValTok{2011} \DecValTok{23}\NormalTok{:}\DecValTok{24}\NormalTok{:}\DecValTok{11} \NormalTok{GMT \}}
+\end{Highlighting}
+\end{Shaded}
+
+Please note that \texttt{atime}, \texttt{mtime}, \texttt{birthtime}, and
+\texttt{ctime} are instances of
+\href{https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date}{Date}
+object and to compare the values of these objects you should use
+appropriate methods. For most general uses
+\href{https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime}{getTime()}
+will return the number of milliseconds elapsed since \emph{1 January
+1970 00:00:00 UTC} and this integer should be sufficient for any
+comparison, however there are additional methods which can be used for
+displaying fuzzy information. More details can be found in the
+\href{https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date}{MDN
+JavaScript Reference} page.
+
+\subsubsection{Stat Time Values}\label{stat-time-values}
+
+The times in the stat object have the following semantics:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{atime} ``Access Time'' - Time when file data last accessed.
+  Changed by the \texttt{mknod(2)}, \texttt{utimes(2)}, and
+  \texttt{read(2)} system calls.
+\item
+  \texttt{mtime} ``Modified Time'' - Time when file data last modified.
+  Changed by the \texttt{mknod(2)}, \texttt{utimes(2)}, and
+  \texttt{write(2)} system calls.
+\item
+  \texttt{ctime} ``Change Time'' - Time when file status was last
+  changed (inode data modification). Changed by the \texttt{chmod(2)},
+  \texttt{chown(2)}, \texttt{link(2)}, \texttt{mknod(2)},
+  \texttt{rename(2)}, \texttt{unlink(2)}, \texttt{utimes(2)},
+  \texttt{read(2)}, and \texttt{write(2)} system calls.
+\item
+  \texttt{birthtime} ``Birth Time'' - Time of file creation. Set once
+  when the file is created. On filesystems where birthtime is not
+  available, this field may instead hold either the \texttt{ctime} or
+  \texttt{1970-01-01T00:00Z} (ie, unix epoch timestamp \texttt{0}). On
+  Darwin and other FreeBSD variants, also set if the \texttt{atime} is
+  explicitly set to an earlier value than the current \texttt{birthtime}
+  using the \texttt{utimes(2)} system call.
+\end{itemize}
+
+Prior to Node v0.12, the \texttt{ctime} held the \texttt{birthtime} on
+Windows systems. Note that as of v0.12, \texttt{ctime} is not ``creation
+time'', and on Unix systems, it never was.
+
+\subsection{fs.createReadStream(path{[},
+options{]})}\label{fs.createreadstreampath-options}
+
+Returns a new ReadStream object (See \texttt{Readable\ Stream}).
+
+\texttt{options} is an object with the following defaults:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{flags}\NormalTok{: }\StringTok{'r'}\NormalTok{,}
+  \DataTypeTok{encoding}\NormalTok{: }\KeywordTok{null}\NormalTok{,}
+  \DataTypeTok{fd}\NormalTok{: }\KeywordTok{null}\NormalTok{,}
+  \DataTypeTok{mode}\NormalTok{: }\DecValTok{0666}\NormalTok{,}
+  \DataTypeTok{autoClose}\NormalTok{: }\KeywordTok{true}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{options} can include \texttt{start} and \texttt{end} values to
+read a range of bytes from the file instead of the entire file. Both
+\texttt{start} and \texttt{end} are inclusive and start at 0. The
+\texttt{encoding} can be
+\texttt{\textquotesingle{}utf8\textquotesingle{}},
+\texttt{\textquotesingle{}ascii\textquotesingle{}}, or
+\texttt{\textquotesingle{}base64\textquotesingle{}}.
+
+If \texttt{fd} is specified, \texttt{ReadStream} will ignore the
+\texttt{path} argument and will use the specified file descriptor. This
+means that no \texttt{open} event will be emitted.
+
+If \texttt{autoClose} is false, then the file descriptor won't be
+closed, even if there's an error. It is your responsibility to close it
+and make sure there's no file descriptor leak. If \texttt{autoClose} is
+set to true (default behavior), on \texttt{error} or \texttt{end} the
+file descriptor will be closed automatically.
+
+\texttt{mode} sets the file mode (permission and sticky bits), but only
+if the file was created.
+
+An example to read the last 10 bytes of a file which is 100 bytes long:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OtherTok{fs}\NormalTok{.}\FunctionTok{createReadStream}\NormalTok{(}\StringTok{'sample.txt'}\NormalTok{, \{}\DataTypeTok{start}\NormalTok{: }\DecValTok{90}\NormalTok{, }\DataTypeTok{end}\NormalTok{: }\DecValTok{99}\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Class: fs.ReadStream}\label{class-fs.readstream}
+
+\texttt{ReadStream} is a
+\href{stream.html\#stream_class_stream_readable}{Readable Stream}.
+
+\subsubsection{\texorpdfstring{Event:
+`open'}{Event: open}}\label{event-open}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{fd} \{Integer\} file descriptor used by the ReadStream.
+\end{itemize}
+
+Emitted when the ReadStream's file is opened.
+
+\subsection{fs.createWriteStream(path{[},
+options{]})}\label{fs.createwritestreampath-options}
+
+Returns a new WriteStream object (See \texttt{Writable\ Stream}).
+
+\texttt{options} is an object with the following defaults:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\{ }\DataTypeTok{flags}\NormalTok{: }\StringTok{'w'}\NormalTok{,}
+  \DataTypeTok{defaultEncoding}\NormalTok{: }\StringTok{'utf8'}\NormalTok{,}
+  \DataTypeTok{fd}\NormalTok{: }\KeywordTok{null}\NormalTok{,}
+  \DataTypeTok{mode}\NormalTok{: }\DecValTok{0666} \NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{options} may also include a \texttt{start} option to allow
+writing data at some position past the beginning of the file. Modifying
+a file rather than replacing it may require a \texttt{flags} mode of
+\texttt{r+} rather than the default mode \texttt{w}.
+
+Like \texttt{ReadStream} above, if \texttt{fd} is specified,
+\texttt{WriteStream} will ignore the \texttt{path} argument and will use
+the specified file descriptor. This means that no \texttt{open} event
+will be emitted.
+
+\subsection{Class: fs.WriteStream}\label{class-fs.writestream}
+
+\texttt{WriteStream} is a
+\href{stream.html\#stream_class_stream_writable}{Writable Stream}.
+
+\subsubsection{\texorpdfstring{Event:
+`open'}{Event: open}}\label{event-open-1}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{fd} \{Integer\} file descriptor used by the WriteStream.
+\end{itemize}
+
+Emitted when the WriteStream's file is opened.
+
+\subsubsection{file.bytesWritten}\label{file.byteswritten}
+
+The number of bytes written so far. Does not include data that is still
+queued for writing.
+
+\subsection{Class: fs.FSWatcher}\label{class-fs.fswatcher}
+
+Objects returned from \texttt{fs.watch()} are of this type.
+
+\subsubsection{watcher.close()}\label{watcher.close}
+
+Stop watching for changes on the given \texttt{fs.FSWatcher}.
+
+\subsubsection{\texorpdfstring{Event:
+`change'}{Event: change}}\label{event-change}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{event} \{String\} The type of fs change
+\item
+  \texttt{filename} \{String\} The filename that changed (if
+  relevant/available)
+\end{itemize}
+
+Emitted when something changes in a watched directory or file. See more
+details in
+\hyperref[fsux5ffsux5fwatchux5ffilenameux5foptionsux5flistener]{fs.watch}.
+
+\subsubsection{\texorpdfstring{Event:
+`error'}{Event: error}}\label{event-error}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{error} \{Error object\}
+\end{itemize}
+
+Emitted when an error occurs.

@@ -1,0 +1,424 @@
+\section{DNS}\label{dns}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+Use \texttt{require(\textquotesingle{}dns\textquotesingle{})} to access
+this module.
+
+This module contains functions that belong to two different categories:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi})}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Functions that use the underlying operating system facilities to
+  perform name resolution, and that do not necessarily do any network
+  communication. This category contains only one function:
+  \texttt{dns.lookup}. \textbf{Developers looking to perform name
+  resolution in the same way that other applications on the same
+  operating system behave should use \texttt{dns.lookup}.}
+\end{enumerate}
+
+Here is an example that does a lookup of \texttt{www.google.com}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{dns = }\FunctionTok{require}\NormalTok{(}\StringTok{'dns'}\NormalTok{);}
+
+\OtherTok{dns}\NormalTok{.}\FunctionTok{lookup}\NormalTok{(}\StringTok{'www.google.com'}\NormalTok{, }\KeywordTok{function} \FunctionTok{onLookup}\NormalTok{(err, addresses, family) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'addresses:'}\NormalTok{, addresses);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi})}
+\setcounter{enumi}{1}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Functions that connect to an actual DNS server to perform name
+  resolution, and that \emph{always} use the network to perform DNS
+  queries. This category contains all functions in the \texttt{dns}
+  module but \texttt{dns.lookup}. These functions do not use the same
+  set of configuration files than what \texttt{dns.lookup} uses. For
+  instance, \emph{they do not use the configuration from
+  \texttt{/etc/hosts}}. These functions should be used by developers who
+  do not want to use the underlying operating system's facilities for
+  name resolution, and instead want to \emph{always} perform DNS
+  queries.
+\end{enumerate}
+
+Here is an example which resolves
+\texttt{\textquotesingle{}www.google.com\textquotesingle{}} then reverse
+resolves the IP addresses which are returned.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{dns = }\FunctionTok{require}\NormalTok{(}\StringTok{'dns'}\NormalTok{);}
+
+\OtherTok{dns}\NormalTok{.}\FunctionTok{resolve4}\NormalTok{(}\StringTok{'www.google.com'}\NormalTok{, }\KeywordTok{function} \NormalTok{(err, addresses) \{}
+  \KeywordTok{if} \NormalTok{(err) }\KeywordTok{throw} \NormalTok{err;}
+
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'addresses: '} \NormalTok{+ }\OtherTok{JSON}\NormalTok{.}\FunctionTok{stringify}\NormalTok{(addresses));}
+
+  \OtherTok{addresses}\NormalTok{.}\FunctionTok{forEach}\NormalTok{(}\KeywordTok{function} \NormalTok{(a) \{}
+    \OtherTok{dns}\NormalTok{.}\FunctionTok{reverse}\NormalTok{(a, }\KeywordTok{function} \NormalTok{(err, hostnames) \{}
+      \KeywordTok{if} \NormalTok{(err) \{}
+        \KeywordTok{throw} \NormalTok{err;}
+      \NormalTok{\}}
+
+      \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{'reverse for '} \NormalTok{+ a + }\StringTok{': '} \NormalTok{+ }\OtherTok{JSON}\NormalTok{.}\FunctionTok{stringify}\NormalTok{(hostnames));}
+    \NormalTok{\});}
+  \NormalTok{\});}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+There are subtle consequences in choosing one or another, please consult
+the \hyperref[dnsux5fimplementationux5fconsiderations]{Implementation
+considerations section} for more information.
+
+\subsection{dns.lookup(hostname{[}, options{]},
+callback)}\label{dns.lookuphostname-options-callback}
+
+Resolves a hostname (e.g.
+\texttt{\textquotesingle{}google.com\textquotesingle{}}) into the first
+found A (IPv4) or AAAA (IPv6) record. \texttt{options} can be an object
+or integer. If \texttt{options} is not provided, then IP v4 and v6
+addresses are both valid. If \texttt{options} is an integer, then it
+must be \texttt{4} or \texttt{6}.
+
+Alternatively, \texttt{options} can be an object containing two
+properties, \texttt{family} and \texttt{hints}. Both properties are
+optional. If \texttt{family} is provided, it must be the integer
+\texttt{4} or \texttt{6}. If \texttt{family} is not provided then IP v4
+and v6 addresses are accepted. The \texttt{hints} field, if present,
+should be one or more of the supported \texttt{getaddrinfo} flags. If
+\texttt{hints} is not provided, then no flags are passed to
+\texttt{getaddrinfo}. Multiple flags can be passed through
+\texttt{hints} by logically \texttt{OR}ing their values. An example
+usage of \texttt{options} is shown below.
+
+\begin{verbatim}
+{
+  family: 4,
+  hints: dns.ADDRCONFIG | dns.V4MAPPED
+}
+\end{verbatim}
+
+See \hyperref[dnsux5fsupportedux5fgetaddrinfoux5fflags]{supported
+\texttt{getaddrinfo} flags} below for more information on supported
+flags.
+
+The callback has arguments \texttt{(err,\ address,\ family)}. The
+\texttt{address} argument is a string representation of a IP v4 or v6
+address. The \texttt{family} argument is either the integer 4 or 6 and
+denotes the family of \texttt{address} (not necessarily the value
+initially passed to \texttt{lookup}).
+
+On error, \texttt{err} is an \texttt{Error} object, where
+\texttt{err.code} is the error code. Keep in mind that \texttt{err.code}
+will be set to \texttt{\textquotesingle{}ENOENT\textquotesingle{}} not
+only when the hostname does not exist but also when the lookup fails in
+other ways such as no available file descriptors.
+
+\texttt{dns.lookup} doesn't necessarily have anything to do with the DNS
+protocol. It's only an operating system facility that can associate name
+with addresses, and vice versa.
+
+Its implementation can have subtle but important consequences on the
+behavior of any Node.js program. Please take some time to consult the
+\hyperref[dnsux5fimplementationux5fconsiderations]{Implementation
+considerations section} before using it.
+
+\section{dns.lookupService(address, port,
+callback)}\label{dns.lookupserviceaddress-port-callback}
+
+Resolves the given address and port into a hostname and service using
+\texttt{getnameinfo}.
+
+The callback has arguments \texttt{(err,\ hostname,\ service)}. The
+\texttt{hostname} and \texttt{service} arguments are strings (e.g.
+\texttt{\textquotesingle{}localhost\textquotesingle{}} and
+\texttt{\textquotesingle{}http\textquotesingle{}} respectively).
+
+On error, \texttt{err} is an \texttt{Error} object, where
+\texttt{err.code} is the error code.
+
+\subsection{dns.resolve(hostname{[}, rrtype{]},
+callback)}\label{dns.resolvehostname-rrtype-callback}
+
+Resolves a hostname (e.g.
+\texttt{\textquotesingle{}google.com\textquotesingle{}}) into an array
+of the record types specified by rrtype.
+
+Valid rrtypes are:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{\textquotesingle{}A\textquotesingle{}} (IPV4 addresses,
+  default)
+\item
+  \texttt{\textquotesingle{}AAAA\textquotesingle{}} (IPV6 addresses)
+\item
+  \texttt{\textquotesingle{}MX\textquotesingle{}} (mail exchange
+  records)
+\item
+  \texttt{\textquotesingle{}TXT\textquotesingle{}} (text records)
+\item
+  \texttt{\textquotesingle{}SRV\textquotesingle{}} (SRV records)
+\item
+  \texttt{\textquotesingle{}PTR\textquotesingle{}} (used for reverse IP
+  lookups)
+\item
+  \texttt{\textquotesingle{}NS\textquotesingle{}} (name server records)
+\item
+  \texttt{\textquotesingle{}CNAME\textquotesingle{}} (canonical name
+  records)
+\item
+  \texttt{\textquotesingle{}SOA\textquotesingle{}} (start of authority
+  record)
+\end{itemize}
+
+The callback has arguments \texttt{(err,\ addresses)}. The type of each
+item in \texttt{addresses} is determined by the record type, and
+described in the documentation for the corresponding lookup methods
+below.
+
+On error, \texttt{err} is an \texttt{Error} object, where
+\texttt{err.code} is one of the error codes listed below.
+
+\subsection{dns.resolve4(hostname,
+callback)}\label{dns.resolve4hostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for IPv4 queries
+(\texttt{A} records). \texttt{addresses} is an array of IPv4 addresses
+(e.g.
+\texttt{{[}\textquotesingle{}74.125.79.104\textquotesingle{},\ \textquotesingle{}74.125.79.105\textquotesingle{},\ \textquotesingle{}74.125.79.106\textquotesingle{}{]}}).
+
+\subsection{dns.resolve6(hostname,
+callback)}\label{dns.resolve6hostname-callback}
+
+The same as \texttt{dns.resolve4()} except for IPv6 queries (an
+\texttt{AAAA} query).
+
+\subsection{dns.resolveMx(hostname,
+callback)}\label{dns.resolvemxhostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for mail exchange queries
+(\texttt{MX} records).
+
+\texttt{addresses} is an array of MX records, each with a priority and
+an exchange attribute (e.g.
+\texttt{{[}\{\textquotesingle{}priority\textquotesingle{}:\ 10,\ \textquotesingle{}exchange\textquotesingle{}:\ \textquotesingle{}mx.example.com\textquotesingle{}\},...{]}}).
+
+\subsection{dns.resolveTxt(hostname,
+callback)}\label{dns.resolvetxthostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for text queries
+(\texttt{TXT} records). \texttt{addresses} is an 2-d array of the text
+records available for \texttt{hostname} (e.g.,
+\texttt{{[}\ {[}\textquotesingle{}v=spf1\ ip4:0.0.0.0\ \textquotesingle{},\ \textquotesingle{}\textasciitilde{}all\textquotesingle{}\ {]}\ {]}}).
+Each sub-array contains TXT chunks of one record. Depending on the use
+case, the could be either joined together or treated separately.
+
+\subsection{dns.resolveSrv(hostname,
+callback)}\label{dns.resolvesrvhostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for service records
+(\texttt{SRV} records). \texttt{addresses} is an array of the SRV
+records available for \texttt{hostname}. Properties of SRV records are
+priority, weight, port, and name (e.g.,
+\texttt{{[}\{\textquotesingle{}priority\textquotesingle{}:\ 10,\ \textquotesingle{}weight\textquotesingle{}:\ 5,\ \textquotesingle{}port\textquotesingle{}:\ 21223,\ \textquotesingle{}name\textquotesingle{}:\ \textquotesingle{}service.example.com\textquotesingle{}\},\ ...{]}}).
+
+\subsection{dns.resolveSoa(hostname,
+callback)}\label{dns.resolvesoahostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for start of authority
+record queries (\texttt{SOA} record).
+
+\texttt{addresses} is an object with the following structure:
+
+\begin{verbatim}
+{
+  nsname: 'ns.example.com',
+  hostmaster: 'root.example.com',
+  serial: 2013101809,
+  refresh: 10000,
+  retry: 2400,
+  expire: 604800,
+  minttl: 3600
+}
+\end{verbatim}
+
+\subsection{dns.resolveNs(hostname,
+callback)}\label{dns.resolvenshostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for name server records
+(\texttt{NS} records). \texttt{addresses} is an array of the name server
+records available for \texttt{hostname} (e.g.,
+\texttt{{[}\textquotesingle{}ns1.example.com\textquotesingle{},\ \textquotesingle{}ns2.example.com\textquotesingle{}{]}}).
+
+\subsection{dns.resolveCname(hostname,
+callback)}\label{dns.resolvecnamehostname-callback}
+
+The same as \texttt{dns.resolve()}, but only for canonical name records
+(\texttt{CNAME} records). \texttt{addresses} is an array of the
+canonical name records available for \texttt{hostname} (e.g.,
+\texttt{{[}\textquotesingle{}bar.example.com\textquotesingle{}{]}}).
+
+\subsection{dns.reverse(ip, callback)}\label{dns.reverseip-callback}
+
+Reverse resolves an ip address to an array of hostnames.
+
+The callback has arguments \texttt{(err,\ hostnames)}.
+
+On error, \texttt{err} is an \texttt{Error} object, where
+\texttt{err.code} is one of the error codes listed below.
+
+\subsection{dns.getServers()}\label{dns.getservers}
+
+Returns an array of IP addresses as strings that are currently being
+used for resolution
+
+\subsection{dns.setServers(servers)}\label{dns.setserversservers}
+
+Given an array of IP addresses as strings, set them as the servers to
+use for resolving
+
+If you specify a port with the address it will be stripped, as the
+underlying library doesn't support that.
+
+This will throw if you pass invalid input.
+
+\subsection{Error codes}\label{error-codes}
+
+Each DNS query can return one of the following error codes:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{dns.NODATA}: DNS server returned answer with no data.
+\item
+  \texttt{dns.FORMERR}: DNS server claims query was misformatted.
+\item
+  \texttt{dns.SERVFAIL}: DNS server returned general failure.
+\item
+  \texttt{dns.NOTFOUND}: Domain name not found.
+\item
+  \texttt{dns.NOTIMP}: DNS server does not implement requested
+  operation.
+\item
+  \texttt{dns.REFUSED}: DNS server refused query.
+\item
+  \texttt{dns.BADQUERY}: Misformatted DNS query.
+\item
+  \texttt{dns.BADNAME}: Misformatted hostname.
+\item
+  \texttt{dns.BADFAMILY}: Unsupported address family.
+\item
+  \texttt{dns.BADRESP}: Misformatted DNS reply.
+\item
+  \texttt{dns.CONNREFUSED}: Could not contact DNS servers.
+\item
+  \texttt{dns.TIMEOUT}: Timeout while contacting DNS servers.
+\item
+  \texttt{dns.EOF}: End of file.
+\item
+  \texttt{dns.FILE}: Error reading file.
+\item
+  \texttt{dns.NOMEM}: Out of memory.
+\item
+  \texttt{dns.DESTRUCTION}: Channel is being destroyed.
+\item
+  \texttt{dns.BADSTR}: Misformatted string.
+\item
+  \texttt{dns.BADFLAGS}: Illegal flags specified.
+\item
+  \texttt{dns.NONAME}: Given hostname is not numeric.
+\item
+  \texttt{dns.BADHINTS}: Illegal hints flags specified.
+\item
+  \texttt{dns.NOTINITIALIZED}: c-ares library initialization not yet
+  performed.
+\item
+  \texttt{dns.LOADIPHLPAPI}: Error loading iphlpapi.dll.
+\item
+  \texttt{dns.ADDRGETNETWORKPARAMS}: Could not find GetNetworkParams
+  function.
+\item
+  \texttt{dns.CANCELLED}: DNS query cancelled.
+\end{itemize}
+
+\subsection{Supported getaddrinfo
+flags}\label{supported-getaddrinfo-flags}
+
+The following flags can be passed as hints to \texttt{dns.lookup}.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{dns.ADDRCONFIG}: Returned address types are determined by the
+  types of addresses supported by the current system. For example, IPv4
+  addresses are only returned if the current system has at least one
+  IPv4 address configured. Loopback addresses are not considered.
+\item
+  \texttt{dns.V4MAPPED}: If the IPv6 family was specified, but no IPv6
+  addresses were found, then return IPv4 mapped IPv6 addresses. Note
+  that it is not supported on some operating systems (e.g FreeBSD 10.1).
+\end{itemize}
+
+\subsection{Implementation
+considerations}\label{implementation-considerations}
+
+Although \texttt{dns.lookup} and \texttt{dns.resolve*/dns.reverse}
+functions have the same goal of associating a network name with a
+network address (or vice versa), their behavior is quite different.
+These differences can have subtle but significant consequences on the
+behavior of Node.js programs.
+
+\subsubsection{dns.lookup}\label{dns.lookup}
+
+Under the hood, \texttt{dns.lookup} uses the same operating system
+facilities as most other programs. For instance, \texttt{dns.lookup}
+will almost always resolve a given name the same way as the
+\texttt{ping} command. On most POSIX-like operating systems, the
+behavior of the \texttt{dns.lookup} function can be tweaked by changing
+settings in \texttt{nsswitch.conf(5)} and/or \texttt{resolv.conf(5)},
+but be careful that changing these files will change the behavior of all
+other programs running on the same operating system.
+
+Though the call will be asynchronous from JavaScript's perspective, it
+is implemented as a synchronous call to \texttt{getaddrinfo(3)} that
+runs on libuv's threadpool. Because libuv's threadpool has a fixed size,
+it means that if for whatever reason the call to \texttt{getaddrinfo(3)}
+takes a long time, other operations that could run on libuv's threadpool
+(such as filesystem operations) will experience degraded performance. In
+order to mitigate this issue, one potential solution is to increase the
+size of libuv's threadpool by setting the `UV\_THREADPOOL\_SIZE'
+environment variable to a value greater than 4 (its current default
+value). For more information on libuv's threadpool, see
+\href{http://docs.libuv.org/en/latest/threadpool.html}{the official
+libuv documentation}.
+
+\subsubsection{dns.resolve, functions starting with dns.resolve and
+dns.reverse}\label{dns.resolve-functions-starting-with-dns.resolve-and-dns.reverse}
+
+These functions are implemented quite differently than
+\texttt{dns.lookup}. They do not use \texttt{getaddrinfo(3)} and they
+\emph{always} perform a DNS query on the network. This network
+communication is always done asynchronously, and does not use libuv's
+threadpool.
+
+As a result, these functions cannot have the same negative impact on
+other processing that happens on libuv's threadpool that
+\texttt{dns.lookup} can have.
+
+They do not use the same set of configuration files than what
+\texttt{dns.lookup} uses. For instance, \emph{they do not use the
+configuration from \texttt{/etc/hosts}}.

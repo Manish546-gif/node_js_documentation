@@ -1,0 +1,300 @@
+\section{HTTPS}\label{https}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Stability: }\DecValTok{3} \NormalTok{- Stable}
+\end{Highlighting}
+\end{Shaded}
+
+HTTPS is the HTTP protocol over TLS/SSL. In Node this is implemented as
+a separate module.
+
+\subsection{Class: https.Server}\label{class-https.server}
+
+This class is a subclass of \texttt{tls.Server} and emits events same as
+\texttt{http.Server}. See \texttt{http.Server} for more information.
+
+\subsubsection{server.setTimeout(msecs,
+callback)}\label{server.settimeoutmsecs-callback}
+
+See
+\href{http.html\#http_server_settimeout_msecs_callback}{http.Server\#setTimeout()}.
+
+\subsubsection{server.timeout}\label{server.timeout}
+
+See \href{http.html\#http_server_timeout}{http.Server\#timeout}.
+
+\subsection{https.createServer(options{[},
+requestListener{]})}\label{https.createserveroptions-requestlistener}
+
+Returns a new HTTPS web server object. The \texttt{options} is similar
+to
+\href{tls.html\#tls_tls_createserver_options_secureconnectionlistener}{tls.createServer()}.
+The \texttt{requestListener} is a function which is automatically added
+to the \texttt{\textquotesingle{}request\textquotesingle{}} event.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{// curl -k https://localhost:8000/}
+\KeywordTok{var} \NormalTok{https = }\FunctionTok{require}\NormalTok{(}\StringTok{'https'}\NormalTok{);}
+\KeywordTok{var} \NormalTok{fs = }\FunctionTok{require}\NormalTok{(}\StringTok{'fs'}\NormalTok{);}
+
+\KeywordTok{var} \NormalTok{options = \{}
+  \DataTypeTok{key}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'test/fixtures/keys/agent2-key.pem'}\NormalTok{),}
+  \DataTypeTok{cert}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'test/fixtures/keys/agent2-cert.pem'}\NormalTok{)}
+\NormalTok{\};}
+
+\OtherTok{https}\NormalTok{.}\FunctionTok{createServer}\NormalTok{(options, }\KeywordTok{function} \NormalTok{(req, res) \{}
+  \OtherTok{res}\NormalTok{.}\FunctionTok{writeHead}\NormalTok{(}\DecValTok{200}\NormalTok{);}
+  \OtherTok{res}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{"hello world}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{);}
+\NormalTok{\}).}\FunctionTok{listen}\NormalTok{(}\DecValTok{8000}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+Or
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{https = }\FunctionTok{require}\NormalTok{(}\StringTok{'https'}\NormalTok{);}
+\KeywordTok{var} \NormalTok{fs = }\FunctionTok{require}\NormalTok{(}\StringTok{'fs'}\NormalTok{);}
+
+\KeywordTok{var} \NormalTok{options = \{}
+  \DataTypeTok{pfx}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'server.pfx'}\NormalTok{)}
+\NormalTok{\};}
+
+\OtherTok{https}\NormalTok{.}\FunctionTok{createServer}\NormalTok{(options, }\KeywordTok{function} \NormalTok{(req, res) \{}
+  \OtherTok{res}\NormalTok{.}\FunctionTok{writeHead}\NormalTok{(}\DecValTok{200}\NormalTok{);}
+  \OtherTok{res}\NormalTok{.}\FunctionTok{end}\NormalTok{(}\StringTok{"hello world}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{);}
+\NormalTok{\}).}\FunctionTok{listen}\NormalTok{(}\DecValTok{8000}\NormalTok{);}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{server.listen(port{[}, host{]}{[}, backlog{]}{[},
+callback{]})}\label{server.listenport-host-backlog-callback}
+
+\subsubsection{server.listen(path{[},
+callback{]})}\label{server.listenpath-callback}
+
+\subsubsection{server.listen(handle{[},
+callback{]})}\label{server.listenhandle-callback}
+
+See
+\href{http.html\#http_server_listen_port_hostname_backlog_callback}{http.listen()}
+for details.
+
+\subsubsection{server.close({[}callback{]})}\label{server.closecallback}
+
+See \href{http.html\#http_server_close_callback}{http.close()} for
+details.
+
+\subsection{https.request(options,
+callback)}\label{https.requestoptions-callback}
+
+Makes a request to a secure web server.
+
+\texttt{options} can be an object or a string. If \texttt{options} is a
+string, it is automatically parsed with
+\href{url.html\#url.parse}{url.parse()}.
+
+All options from
+\href{http.html\#http_http_request_options_callback}{http.request()} are
+valid.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{https = }\FunctionTok{require}\NormalTok{(}\StringTok{'https'}\NormalTok{);}
+
+\KeywordTok{var} \NormalTok{options = \{}
+  \DataTypeTok{hostname}\NormalTok{: }\StringTok{'encrypted.google.com'}\NormalTok{,}
+  \DataTypeTok{port}\NormalTok{: }\DecValTok{443}\NormalTok{,}
+  \DataTypeTok{path}\NormalTok{: }\StringTok{'/'}\NormalTok{,}
+  \DataTypeTok{method}\NormalTok{: }\StringTok{'GET'}
+\NormalTok{\};}
+
+\KeywordTok{var} \NormalTok{req = }\OtherTok{https}\NormalTok{.}\FunctionTok{request}\NormalTok{(options, }\KeywordTok{function}\NormalTok{(res) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{"statusCode: "}\NormalTok{, }\OtherTok{res}\NormalTok{.}\FunctionTok{statusCode}\NormalTok{);}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{"headers: "}\NormalTok{, }\OtherTok{res}\NormalTok{.}\FunctionTok{headers}\NormalTok{);}
+
+  \OtherTok{res}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function}\NormalTok{(d) \{}
+    \OtherTok{process}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{write}\NormalTok{(d);}
+  \NormalTok{\});}
+\NormalTok{\});}
+\OtherTok{req}\NormalTok{.}\FunctionTok{end}\NormalTok{();}
+
+\OtherTok{req}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'error'}\NormalTok{, }\KeywordTok{function}\NormalTok{(e) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{error}\NormalTok{(e);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+The options argument has the following options
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{host}: A domain name or IP address of the server to issue the
+  request to. Defaults to
+  \texttt{\textquotesingle{}localhost\textquotesingle{}}.
+\item
+  \texttt{hostname}: To support \texttt{url.parse()} \texttt{hostname}
+  is preferred over \texttt{host}
+\item
+  \texttt{port}: Port of remote server. Defaults to 443.
+\item
+  \texttt{method}: A string specifying the HTTP request method. Defaults
+  to \texttt{\textquotesingle{}GET\textquotesingle{}}.
+\item
+  \texttt{path}: Request path. Defaults to
+  \texttt{\textquotesingle{}/\textquotesingle{}}. Should include query
+  string if any. E.G.
+  \texttt{\textquotesingle{}/index.html?page=12\textquotesingle{}}
+\item
+  \texttt{headers}: An object containing request headers.
+\item
+  \texttt{auth}: Basic authentication i.e.
+  \texttt{\textquotesingle{}user:password\textquotesingle{}} to compute
+  an Authorization header.
+\item
+  \texttt{agent}: Controls
+  \hyperref[httpsux5fclassux5fhttpsux5fagent]{Agent} behavior. When an
+  Agent is used request will default to
+  \texttt{Connection:\ keep-alive}. Possible values:
+\item
+  \texttt{undefined} (default): use
+  \hyperref[httpsux5fhttpsux5fglobalagent]{globalAgent} for this host
+  and port.
+\item
+  \texttt{Agent} object: explicitly use the passed in \texttt{Agent}.
+\item
+  \texttt{false}: opts out of connection pooling with an Agent, defaults
+  request to \texttt{Connection:\ close}.
+\end{itemize}
+
+The following options from
+\href{tls.html\#tls_tls_connect_options_callback}{tls.connect()} can
+also be specified. However, a
+\hyperref[httpsux5fhttpsux5fglobalagent]{globalAgent} silently ignores
+these.
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \texttt{pfx}: Certificate, Private key and CA certificates to use for
+  SSL. Default \texttt{null}.
+\item
+  \texttt{key}: Private key to use for SSL. Default \texttt{null}.
+\item
+  \texttt{passphrase}: A string of passphrase for the private key or
+  pfx. Default \texttt{null}.
+\item
+  \texttt{cert}: Public x509 certificate to use. Default \texttt{null}.
+\item
+  \texttt{ca}: An authority certificate or array of authority
+  certificates to check the remote host against.
+\item
+  \texttt{ciphers}: A string describing the ciphers to use or exclude.
+  Consult
+  \url{http://www.openssl.org/docs/apps/ciphers.html\#CIPHER_LIST_FORMAT}
+  for details on the format.
+\item
+  \texttt{rejectUnauthorized}: If \texttt{true}, the server certificate
+  is verified against the list of supplied CAs. An
+  \texttt{\textquotesingle{}error\textquotesingle{}} event is emitted if
+  verification fails. Verification happens at the connection level,
+  \emph{before} the HTTP request is sent. Default \texttt{true}.
+\item
+  \texttt{secureProtocol}: The SSL method to use, e.g.
+  \texttt{TLSv1\_method} to force TLS version 1. The possible values
+  depend on your installation of OpenSSL and are defined in the constant
+  \href{http://www.openssl.org/docs/ssl/ssl.html\#DEALING_WITH_PROTOCOL_METHODS}{SSL\_METHODS}.
+\end{itemize}
+
+In order to specify these options, use a custom \texttt{Agent}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{options = \{}
+  \DataTypeTok{hostname}\NormalTok{: }\StringTok{'encrypted.google.com'}\NormalTok{,}
+  \DataTypeTok{port}\NormalTok{: }\DecValTok{443}\NormalTok{,}
+  \DataTypeTok{path}\NormalTok{: }\StringTok{'/'}\NormalTok{,}
+  \DataTypeTok{method}\NormalTok{: }\StringTok{'GET'}\NormalTok{,}
+  \DataTypeTok{key}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'test/fixtures/keys/agent2-key.pem'}\NormalTok{),}
+  \DataTypeTok{cert}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'test/fixtures/keys/agent2-cert.pem'}\NormalTok{)}
+\NormalTok{\};}
+\OtherTok{options}\NormalTok{.}\FunctionTok{agent} \NormalTok{= }\KeywordTok{new} \OtherTok{https}\NormalTok{.}\FunctionTok{Agent}\NormalTok{(options);}
+
+\KeywordTok{var} \NormalTok{req = }\OtherTok{https}\NormalTok{.}\FunctionTok{request}\NormalTok{(options, }\KeywordTok{function}\NormalTok{(res) \{}
+  \NormalTok{...}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Or does not use an \texttt{Agent}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{options = \{}
+  \DataTypeTok{hostname}\NormalTok{: }\StringTok{'encrypted.google.com'}\NormalTok{,}
+  \DataTypeTok{port}\NormalTok{: }\DecValTok{443}\NormalTok{,}
+  \DataTypeTok{path}\NormalTok{: }\StringTok{'/'}\NormalTok{,}
+  \DataTypeTok{method}\NormalTok{: }\StringTok{'GET'}\NormalTok{,}
+  \DataTypeTok{key}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'test/fixtures/keys/agent2-key.pem'}\NormalTok{),}
+  \DataTypeTok{cert}\NormalTok{: }\OtherTok{fs}\NormalTok{.}\FunctionTok{readFileSync}\NormalTok{(}\StringTok{'test/fixtures/keys/agent2-cert.pem'}\NormalTok{),}
+  \DataTypeTok{agent}\NormalTok{: }\KeywordTok{false}
+\NormalTok{\};}
+
+\KeywordTok{var} \NormalTok{req = }\OtherTok{https}\NormalTok{.}\FunctionTok{request}\NormalTok{(options, }\KeywordTok{function}\NormalTok{(res) \{}
+  \NormalTok{...}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{https.get(options,
+callback)}\label{https.getoptions-callback}
+
+Like \texttt{http.get()} but for HTTPS.
+
+\texttt{options} can be an object or a string. If \texttt{options} is a
+string, it is automatically parsed with
+\href{url.html\#url.parse}{url.parse()}.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{var} \NormalTok{https = }\FunctionTok{require}\NormalTok{(}\StringTok{'https'}\NormalTok{);}
+
+\OtherTok{https}\NormalTok{.}\FunctionTok{get}\NormalTok{(}\StringTok{'https://encrypted.google.com/'}\NormalTok{, }\KeywordTok{function}\NormalTok{(res) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{"statusCode: "}\NormalTok{, }\OtherTok{res}\NormalTok{.}\FunctionTok{statusCode}\NormalTok{);}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{log}\NormalTok{(}\StringTok{"headers: "}\NormalTok{, }\OtherTok{res}\NormalTok{.}\FunctionTok{headers}\NormalTok{);}
+
+  \OtherTok{res}\NormalTok{.}\FunctionTok{on}\NormalTok{(}\StringTok{'data'}\NormalTok{, }\KeywordTok{function}\NormalTok{(d) \{}
+    \OtherTok{process}\NormalTok{.}\OtherTok{stdout}\NormalTok{.}\FunctionTok{write}\NormalTok{(d);}
+  \NormalTok{\});}
+
+\NormalTok{\}).}\FunctionTok{on}\NormalTok{(}\StringTok{'error'}\NormalTok{, }\KeywordTok{function}\NormalTok{(e) \{}
+  \OtherTok{console}\NormalTok{.}\FunctionTok{error}\NormalTok{(e);}
+\NormalTok{\});}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Class: https.Agent}\label{class-https.agent}
+
+An Agent object for HTTPS similar to
+\href{http.html\#http_class_http_agent}{http.Agent}. See
+\hyperref[httpsux5fhttpsux5frequestux5foptionsux5fcallback]{https.request()}
+for more information.
+
+\subsection{https.globalAgent}\label{https.globalagent}
+
+Global instance of
+\hyperref[httpsux5fclassux5fhttpsux5fagent]{https.Agent} for all HTTPS
+client requests.
