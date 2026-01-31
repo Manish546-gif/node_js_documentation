@@ -19,7 +19,9 @@ export default function AIChat() {
     if (import.meta.env.VITE_GEMINI_API_KEY) {
       try {
         genAIRef.current = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
-        const model = genAIRef.current.getGenerativeModel({ model: 'gemini-pro' })
+        // Try models in order of likelihood - free tier defaults to older models
+        const modelName = import.meta.env.VITE_GEMINI_MODEL || 'gemini-pro'
+        const model = genAIRef.current.getGenerativeModel({ model: modelName })
         chatRef.current = model.startChat({
           history: [],
           generationConfig: {
@@ -81,7 +83,8 @@ Keep responses concise but informative. Use markdown formatting for better reada
       return aiResponse.text()
     } catch (error) {
       console.error('Gemini API error:', error)
-      setApiError('Failed to get AI response')
+      setApiError('Gemini API unavailable. Using offline responses. Check your API key.')
+      // Silently fall back to local knowledge base
       return generateFallbackResponse(userMessage)
     }
   }
